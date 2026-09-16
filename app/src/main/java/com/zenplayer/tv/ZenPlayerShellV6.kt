@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -230,7 +231,7 @@ private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, onPlay:
     val filtered = channels.filter { query.isBlank() || it.name.contains(query, true) || it.group.orEmpty().contains(query, true) }
     Column(Modifier.fillMaxSize()) {
         Text("Suche", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black); Text("Fokus öffnet nichts · erst OK startet die Eingabe", color = V6Muted, fontSize = 13.sp)
-        OutlinedTextField(query, { query = it }, label = { Text("Sender suchen…") }, readOnly = !editing, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { editing = true; true } else false })
+        V6TvInput("Sender suchen…", query, { query = it }, "search", editing) { editing = "search" }
         Spacer(Modifier.height(10.dp)); LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V6Channel(it, accent) { onPlay(it) } } }
     }
 }
@@ -245,40 +246,91 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
     var pass by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf("") }
+    val keyboard = LocalSoftwareKeyboardController.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) scope.launch { status = "Playlist wird eingelesen…"; runCatching { store.importPlaylistFromUri(uri) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht gelesen werden" } } }
-    BackHandler(onBack = onBack)
+
+    BackHandler {
+        if (editing.isNotEmpty()) {
+            editing = ""
+            keyboard?.hide()
+        } else {
+            onBack()
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
-        Text("Quelle hinzufügen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black); Text("D-Pad navigieren · OK startet die Eingabe · Zurück geht zurück", color = V6Muted, fontSize = 13.sp); Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            V6SourceCard("M3U / M3U8", accent, Modifier.weight(1f)) {
-                V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
-                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
-                V6SourceButton("URL importieren", accent) { scope.launch { status = "URL wird geladen…"; store.importPlaylistFromUrl(url.trim()).onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" } } }
-            }
-            V6SourceCard("Xtream Codes", accent, Modifier.weight(1f)) {
-                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
-                V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
-                V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
-                V6SourceButton("Xtream verbinden", accent) {
-                    scope.launch {
-                        status = "Xtream wird verbunden…"
-                        val result = XtreamClient(server.trim(), user.trim(), pass).load()
-                        if (result.isSuccess) {
-                            val list = result.getOrNull().orEmpty()
-                            store.importXtream(list); status = "${list.size} Sender importiert"; onDone()
-                        } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen"
+        Text("Quelle hinzufügen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("D-Pad navigieren · OK startet die Eingabe · Zurück geht zurück", color = V6Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            item {
+                V6SourceCard("M3U / M3U8", accent, Modifier.fillMaxWidth()) {
+                    V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
+                    V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
+                    V6SourceButton("URL importieren", accent) {
+                        scope.launch {
+                            status = "URL wird geladen…"
+                            runCatching { store.importPlaylistFromUrl(url.trim()) }
+                                .onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }
+                                .onFailure { status = it.message ?: "M3U konnte nicht geladen werden" }
+                        }
                     }
                 }
             }
+            item {
+                V6SourceCard("Xtream Codes", accent, Modifier.fillMaxWidth()) {
+                    V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
+                    V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
+                    V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
+                    V6SourceButton("Xtream verbinden", accent) {
+                        scope.launch {
+                            status = "Xtream wird verbunden…"
+                            val result = XtreamClient(server.trim(), user.trim(), pass).load()
+                            if (result.isSuccess) {
+                                val list = result.getOrNull().orEmpty()
+                                store.importXtream(list)
+                                status = "${list.size} Sender importiert"
+                                onDone()
+                            } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen"
+                        }
+                    }
+                }
+            }
+            item {
+                Text(status, color = accent, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                V6SourceButton("Zurück", accent, onBack)
+            }
         }
-        Spacer(Modifier.height(14.dp)); Text(status, color = accent, fontSize = 12.sp); Spacer(Modifier.height(12.dp)); V6SourceButton("Zurück", accent, onBack)
     }
 }
 
 @Composable
 private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, startEditing: () -> Unit) {
     val active = editing == id
-    OutlinedTextField(value, onValue, label = { Text(label) }, readOnly = !active, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { startEditing(); true } else false })
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(active) {
+        if (active) keyboard?.showSoftwareKeyboard()
+    }
+    OutlinedTextField(
+        value,
+        onValue,
+        label = { Text(label) },
+        readOnly = !active,
+        singleLine = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .onKeyEvent { e ->
+                if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) {
+                    startEditing()
+                    true
+                } else false
+            }
+    )
 }
 
 @Composable
