@@ -92,7 +92,12 @@ fun ZenPlayerScreen(
                     Key.MediaPlay -> { controller?.playPause(); notify("Wiedergabe"); true }
                     Key.MediaPause -> { controller?.playPause(); notify("Pause"); true }
                     Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
-                        if (showChrome) notify("Player") else onRemoteKey(event.key)
+                        if (showChrome) {
+                            notify("Player")
+                            true
+                        } else {
+                            onRemoteKey(event.key)
+                        }
                     }
                     else -> onRemoteKey(event.key)
                 }
