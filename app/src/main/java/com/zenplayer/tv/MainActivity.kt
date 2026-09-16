@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
@@ -245,65 +246,34 @@ private fun SettingsSection(title: String, subtitle: String, intensity: Int, acc
 @Composable
 private fun IntensityRow(title: String, value: Int, accent: Color, onChange: (Int) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text("1 = dezent · 10 = starkes Milchglas", color = TextSecondary, fontSize = 12.sp) }
-            Text("$value / 10", color = accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        }
+        Row(verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f)); Text("$value / 10", color = accent, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            (1..10).forEach { level ->
-                Box(Modifier.width(38.dp).height(30.dp).clip(RoundedCornerShape(9.dp)).background(glassFill(value, level <= value)).border(1.dp, if (level == value) accent else Color.White.copy(.07f), RoundedCornerShape(9.dp)).focusable().clickable { onChange(level) }, Alignment.Center) {
-                    Text(level.toString(), color = TextPrimary, fontSize = 11.sp)
-                }
-            }
-        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { (1..10).forEach { level ->
+            Box(Modifier.width(28.dp).height(28.dp).clip(RoundedCornerShape(8.dp)).background(if (level <= value) accent.copy(.75f) else Color.White.copy(.06f)).border(1.dp, if (level == value) accent else Color.Transparent, RoundedCornerShape(8.dp)).focusable().clickable { onChange(level) }, Alignment.Center) { Text(level.toString(), color = TextPrimary, fontSize = 10.sp) }
+        }}
     }
 }
 
 @Composable
 private fun ThemePicker(settings: SettingsStore, accent: Color) {
-    Column {
-        Text("Theme", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        Text("Live-Vorschau für den gesamten Look", color = TextSecondary, fontSize = 12.sp)
-        Spacer(Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(ZenTheme.entries) { theme ->
-                val selected = theme == settings.ui.theme
-                val themeColor = when (theme) { ZenTheme.AURORA -> Color(0xFF8D7CFF); ZenTheme.OBSIDIAN -> Color(0xFF65A8FF); ZenTheme.FROST -> Color(0xFF72D7D2); ZenTheme.AMBER -> Color(0xFFFFB45E) }
-                Box(Modifier.width(170.dp).height(86.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(themeColor.copy(.5f), Color(0xFF11131D))))
-                    .border(if (selected) 2.dp else 1.dp, if (selected) accent else Color.White.copy(.12f), RoundedCornerShape(20.dp))
-                    .focusable().clickable { settings.updateUi(settings.ui.copy(theme = theme)) }.padding(14.dp)) {
-                    Column(Modifier.fillMaxSize()) { Text(theme.label, color = TextPrimary, fontWeight = FontWeight.SemiBold); Spacer(Modifier.weight(1f)); Text(if (selected) "AKTIV" else "Vorschau", color = TextSecondary, fontSize = 11.sp) }
-                }
-            }
-        }
-    }
+    ChoiceRow("Theme", settings.ui.theme.label, ZenTheme.entries.map { it.label }, accent) { value -> settings.updateUi(settings.ui.copy(theme = ZenTheme.entries.first { it.label == value })) }
 }
 
 @Composable
-private fun ChoiceRow(title: String, value: String, options: List<String>, accent: Color, onSelect: (String) -> Unit) {
+private fun ChoiceRow(title: String, value: String, options: List<String>, accent: Color, onChange: (String) -> Unit) {
     var index by remember(value) { mutableStateOf(options.indexOf(value).coerceAtLeast(0)) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { index = (index + 1) % options.size; onSelect(options[index]) }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text(value, color = TextSecondary, fontSize = 12.sp) }
-        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(glassFill(7, true)).border(1.dp, accent.copy(.45f), RoundedCornerShape(14.dp)).focusable().clickable { index = (index + 1) % options.size; onSelect(options[index]) }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("Ändern", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
-    }
-}
-
-@Composable
-private fun ToggleRow(title: String, subtitle: String, checked: Boolean, accent: Color, onCheckedChange: (Boolean) -> Unit) {
-    var value by remember(checked) { mutableStateOf(checked) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { value = !value; onCheckedChange(value) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
-        Box(Modifier.width(54.dp).height(30.dp).clip(RoundedCornerShape(15.dp)).background(if (value) accent.copy(.8f) else Color.White.copy(.08f)).border(1.dp, Color.White.copy(.12f), RoundedCornerShape(15.dp)).focusable().clickable { value = !value; onCheckedChange(value) }, Alignment.Center) {
-            Text(if (value) "AN" else "AUS", color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(value, color = TextSecondary, fontSize = 12.sp) }
+            Box(Modifier.width(48.dp).height(42.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(.06f)).focusable().clickable { index = (index + 1) % options.size; onChange(options[index]) }.onKeyEvent { event -> if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { index = (index + 1) % options.size; onChange(options[index]); true } else false }, Alignment.Center) { Text("›", color = accent, fontSize = 25.sp) }
         }
     }
 }
 
 @Composable
-private fun ActionRow(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).focusable().clickable(onClick = onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = TextSecondary, modifier = Modifier.padding(end = 14.dp))
-        Column { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
+private fun ToggleRow(title: String, subtitle: String, checked: Boolean, accent: Color, onChange: (Boolean) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (focused) glassFill(10, true) else Color.Transparent).onFocusChanged { focused = it.isFocused }.focusable().clickable { onChange(!checked) }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
+        Box(Modifier.width(48.dp).height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (checked) accent.copy(.85f) else Color.White.copy(.08f)), Alignment.Center) { Text(if (checked) "ON" else "OFF", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
     }
 }
