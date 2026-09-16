@@ -6,7 +6,6 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,11 +54,12 @@ fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Uni
 @Composable
 private fun ExoPlayerView(channel: Channel, settings: SettingsStore) {
     val context = LocalContext.current
+    val startImmediately = settings.player.startLiveImmediately
     val player = remember(channel.streamUrl) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(channel.streamUrl)))
             prepare()
-            playWhenReady = settings.player.startLiveImmediately
+            playWhenReady = startImmediately
         }
     }
     DisposableEffect(player) { onDispose { player.release() } }
@@ -72,7 +72,9 @@ private fun ExoPlayerView(channel: Channel, settings: SettingsStore) {
 @Composable
 private fun VlcPlayerView(channel: Channel, settings: SettingsStore) {
     val context = LocalContext.current
-    val libVlc = remember { LibVLC(context, arrayListOf("--audio-time-stretch", "--network-caching=${networkCaching(settings)}")) }
+    val caching = networkCaching(settings)
+    val hardwareAcceleration = settings.player.hardwareAcceleration
+    val libVlc = remember(caching) { LibVLC(context, arrayListOf("--audio-time-stretch", "--network-caching=$caching")) }
     val mediaPlayer = remember(libVlc) { MediaPlayer(libVlc) }
     val videoLayout = remember { VLCVideoLayout(context) }
 
@@ -84,12 +86,12 @@ private fun VlcPlayerView(channel: Channel, settings: SettingsStore) {
             runCatching { libVlc.release() }
         }
     }
-    LaunchedEffect(channel.streamUrl) {
+    LaunchedEffect(channel.streamUrl, caching, hardwareAcceleration) {
         runCatching {
             mediaPlayer.attachViews(videoLayout, null, false, false)
             val media = Media(libVlc, Uri.parse(channel.streamUrl))
-            media.setHWDecoderEnabled(settings.player.hardwareAcceleration, false)
-            media.addOption(":network-caching=${networkCaching(settings)}")
+            media.setHWDecoderEnabled(hardwareAcceleration, false)
+            media.addOption(":network-caching=$caching")
             mediaPlayer.media = media
             media.release()
             mediaPlayer.play()
@@ -120,7 +122,7 @@ private fun PlayerTitle(channel: Channel, engine: String, modifier: Modifier) {
 
 @Composable
 private fun PlayerLaunchFallback() {
-    Box(Modifier.fillMaxSize().background(Color.Black).focusable(), Alignment.Center) { Text("Starte externen Player…", color = Color.White, fontSize = 20.sp) }
+    Box(Modifier.fillMaxSize().background(Color.Black), Alignment.Center) { Text("Starte externen Player…", color = Color.White, fontSize = 20.sp) }
 }
 
 fun launchExternalPlayer(context: Context, url: String, packageName: String?): Boolean {
