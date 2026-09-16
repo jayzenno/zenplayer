@@ -3,7 +3,6 @@ package com.zenplayer.tv
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +11,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LiveTv
@@ -168,39 +167,42 @@ private fun SettingsScreen(settings: SettingsStore, accent: Color) {
         }
         item { SettingsSection("Darstellung", "Look & Feel") {
             ThemePicker(settings, accent)
-            ChoiceRow("Senderdarstellung", settings.ui.channelListStyle.label, listOf("Cinematic", "Kompakt", "Karten")) { value -> settings.updateUi(settings.ui.copy(channelListStyle = ChannelListStyle.entries.first { it.label == value })) }
+            ChoiceRow("Senderdarstellung", settings.ui.channelListStyle.label, ChannelListStyle.entries.map { it.label }) { value -> settings.updateUi(settings.ui.copy(channelListStyle = ChannelListStyle.entries.first { it.label == value })) }
             ToggleRow("Senderlogos anzeigen", "Logos aus der M3U/EPG verwenden", settings.ui.showLogos) { settings.updateUi(settings.ui.copy(showLogos = it)) }
             ToggleRow("Gruppenüberschriften", "Kategorien klar voneinander trennen", settings.ui.showGroupHeaders) { settings.updateUi(settings.ui.copy(showGroupHeaders = it)) }
             ToggleRow("Focus-Animationen", "Sanfte Skalierung und Glow-Effekte", settings.ui.animations) { settings.updateUi(settings.ui.copy(animations = it)) }
-            ToggleRow("Reduzierte Bewegung", "Animationen für empfindliche Nutzer minimieren", settings.ui.reducedMotion) { settings.updateUi(settings.ui.copy(reducedMotion = it)) }
+            ToggleRow("Reduzierte Bewegung", "Animationen minimieren", settings.ui.reducedMotion) { settings.updateUi(settings.ui.copy(reducedMotion = it)) }
         }}
         item { SettingsSection("Player", "Wiedergabe & Streaming") {
             ChoiceRow("Buffering", settings.player.bufferMode.label, BufferMode.entries.map { it.label }) { value -> settings.updatePlayer(settings.player.copy(bufferMode = BufferMode.entries.first { it.label == value })) }
             ToggleRow("Live sofort starten", "Beim Öffnen eines Senders direkt abspielen", settings.player.startLiveImmediately) { settings.updatePlayer(settings.player.copy(startLiveImmediately = it)) }
-            ToggleRow("Nächsten Eintrag automatisch abspielen", "Für Replay/VOD-Listen", settings.player.autoPlayNext) { settings.updatePlayer(settings.player.copy(autoPlayNext = it)) }
+            ToggleRow("Auto-Play", "Nächsten Eintrag automatisch abspielen", settings.player.autoPlayNext) { settings.updatePlayer(settings.player.copy(autoPlayNext = it)) }
             ToggleRow("Position merken", "Replay- und VOD-Fortschritt speichern", settings.player.rememberPosition) { settings.updatePlayer(settings.player.copy(rememberPosition = it)) }
-            ToggleRow("Hardware-Decoding bevorzugen", "Media3/ExoPlayer Hardwarepfad nutzen", settings.player.hardwareAcceleration) { settings.updatePlayer(settings.player.copy(hardwareAcceleration = it)) }
-            ToggleRow("Deinterlacing", "Für interlaced Streams automatisch verbessern", settings.player.deinterlacing) { settings.updatePlayer(settings.player.copy(deinterlacing = it)) }
+            ToggleRow("Hardware-Decoding", "Hardwarepfad bevorzugen", settings.player.hardwareAcceleration) { settings.updatePlayer(settings.player.copy(hardwareAcceleration = it)) }
+            ToggleRow("Deinterlacing", "Interlaced Streams verbessern", settings.player.deinterlacing) { settings.updatePlayer(settings.player.copy(deinterlacing = it)) }
             ToggleRow("Lautstärke normalisieren", "Sprünge zwischen Sendern reduzieren", settings.player.audioNormalization) { settings.updatePlayer(settings.player.copy(audioNormalization = it)) }
-            ToggleRow("Player-Statistiken", "Decoder, Bitrate und Buffer im Overlay zeigen", settings.player.showPlayerStats) { settings.updatePlayer(settings.player.copy(showPlayerStats = it)) }
+            ToggleRow("Player-Statistiken", "Decoder, Bitrate und Buffer anzeigen", settings.player.showPlayerStats) { settings.updatePlayer(settings.player.copy(showPlayerStats = it)) }
         }}
         item { SettingsSection("Catch-up & Replay", "Probleme automatisch abfangen") {
             ToggleRow("Shared Catch-up bevorzugen", "Archiv eines passenden Schwester-Senders verwenden", settings.player.preferCatchupSibling) { settings.updatePlayer(settings.player.copy(preferCatchupSibling = it)) }
-            ToggleRow("Catch-up vor Wechsel bestätigen", "Vor dem Start eines alternativen Archivs nachfragen", settings.player.catchupConfirmation) { settings.updatePlayer(settings.player.copy(catchupConfirmation = it)) }
+            ToggleRow("Catch-up vor Wechsel bestätigen", "Vor alternativem Archiv nachfragen", settings.player.catchupConfirmation) { settings.updatePlayer(settings.player.copy(catchupConfirmation = it)) }
         }}
-        item { SettingsSection("Fernbedienung", "D-Pad, OK, Zurück und Tasten") {
+        item { SettingsSection("Fernbedienung", "D-Pad-first für Android TV") {
             ChoiceRow("▲ / ▼", settings.remote.channelUpDown, listOf("Sender wechseln", "EPG bewegen", "Lautstärke")) { settings.updateRemote(settings.remote.copy(channelUpDown = it)) }
             ChoiceRow("◀ / ▶", settings.remote.leftRight, listOf("EPG / Zeitleiste", "Sender wechseln", "Player Controls")) { settings.updateRemote(settings.remote.copy(leftRight = it)) }
-            ChoiceRow("▲ / ▼ halten", settings.remote.longPressUpDown, listOf("Schnell zappen", "Gruppen wechseln", "Lautstärke")) { settings.updateRemote(settings.remote.copy(longPressUpDown = it)) }
+            ChoiceRow("Long Press", settings.remote.longPressUpDown, listOf("Schnell zappen", "Gruppen wechseln", "Lautstärke")) { settings.updateRemote(settings.remote.copy(longPressUpDown = it)) }
             ChoiceRow("Zurück", settings.remote.backAction, listOf("Overlay schließen", "Zum Live-TV", "App verlassen")) { settings.updateRemote(settings.remote.copy(backAction = it)) }
             ChoiceRow("OK / Enter", settings.remote.okAction, listOf("Wiedergabe / Auswahl", "EPG öffnen", "Player Overlay")) { settings.updateRemote(settings.remote.copy(okAction = it)) }
-            ToggleRow("Nummerntasten", "Direkt zu Sender 1–999 springen", settings.remote.numericKeys) { settings.updateRemote(settings.remote.copy(numericKeys = it)) }
+            ToggleRow("Nummerntasten", "Optional für Fernbedienungen mit Ziffern", settings.remote.numericKeys) { settings.updateRemote(settings.remote.copy(numericKeys = it)) }
             ToggleRow("Senderhistorie", "Schnell zum vorherigen Sender zurück", settings.remote.channelHistory) { settings.updateRemote(settings.remote.copy(channelHistory = it)) }
         }}
         item { SettingsSection("EPG & Guide", "Elektronischer Programmführer") {
-            ToggleRow("Automatisch aktualisieren", "EPG im Hintergrund aktuell halten", true) { }
-            ToggleRow("Jetzt/Als Nächstes", "Programminfos direkt auf Live-Karten", true) { }
-            ToggleRow("Zeitleiste beim Zappen", "Aktuelle Sendung und Fortschritt anzeigen", true) { }
+            ToggleRow("EPG automatisch aktualisieren", "Guide im Hintergrund aktuell halten", true) { }
+            ToggleRow("Jetzt / Als Nächstes", "Programminfos auf Live-Karten", true) { }
+            ToggleRow("Zeitleiste beim Zappen", "Aktuelle Sendung und Fortschritt", true) { }
+            ToggleRow("Vergangenheit durchsuchen", "EPG nach hinten navigieren", true) { }
+            ToggleRow("Zukunft durchsuchen", "EPG in die Zukunft navigieren", true) { }
+            ToggleRow("Von vorne starten", "Aktuelle Sendung per Catch-up ab Start abspielen", true) { }
         }}
         item { SettingsSection("Playlist & Daten", "Quellen und lokale Daten") {
             ActionRow("M3U / Xtream Quellen", "Quellen verwalten und synchronisieren", Icons.Default.LiveTv) { }
@@ -209,7 +211,7 @@ private fun SettingsScreen(settings: SettingsStore, accent: Color) {
         }}
         item { SettingsSection("System", "Zurücksetzen & Informationen") {
             ActionRow("Auf Standard zurücksetzen", "Alle ZenPlayer-Einstellungen zurücksetzen", Icons.Default.ArrowBack) { settings.reset() }
-            ActionRow("Über ZenPlayer", "Version, Open-Source-Komponenten und Lizenzen", Icons.Default.Info) { }
+            ActionRow("Über ZenPlayer", "Version und Open-Source-Komponenten", Icons.Default.Info) { }
         }}
         item { Spacer(Modifier.height(24.dp)) }
     }
@@ -226,10 +228,9 @@ private fun SettingsSection(title: String, subtitle: String, content: @Composabl
 
 @Composable
 private fun ThemePicker(settings: SettingsStore, accent: Color) {
-    var expanded by remember { mutableStateOf(false) }
     Column {
         Text("Theme", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        Text("Mit Live-Vorschau für den gesamten Look", color = TextSecondary, fontSize = 12.sp)
+        Text("Live-Vorschau für den gesamten Look", color = TextSecondary, fontSize = 12.sp)
         Spacer(Modifier.height(10.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(ZenTheme.entries) { theme ->
@@ -237,8 +238,8 @@ private fun ThemePicker(settings: SettingsStore, accent: Color) {
                 val themeColor = when (theme) { ZenTheme.AURORA -> Color(0xFF8D7CFF); ZenTheme.OBSIDIAN -> Color(0xFF65A8FF); ZenTheme.FROST -> Color(0xFF72D7D2); ZenTheme.AMBER -> Color(0xFFFFB45E) }
                 Box(Modifier.width(170.dp).height(86.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(themeColor.copy(.5f), Color(0xFF11131D))))
                     .border(if (selected) 2.dp else 1.dp, if (selected) accent else Color.White.copy(.12f), RoundedCornerShape(20.dp))
-                    .focusable().clickable { settings.updateUi(settings.ui.copy(theme = theme)); expanded = false }.padding(14.dp)) {
-                    Column(Modifier.fillMaxSize()) { Text(theme.label, color = TextPrimary, fontWeight = FontWeight.SemiBold); Spacer(Modifier.weight(1f)); if (selected) Icon(Icons.Default.Check, null, tint = TextPrimary, modifier = Modifier.align(Alignment.End)) }
+                    .focusable().clickable { settings.updateUi(settings.ui.copy(theme = theme)) }.padding(14.dp)) {
+                    Column(Modifier.fillMaxSize()) { Text(theme.label, color = TextPrimary, fontWeight = FontWeight.SemiBold); Spacer(Modifier.weight(1f)); Text(if (selected) "AKTIV" else "Vorschau", color = TextSecondary, fontSize = 11.sp) }
                 }
             }
         }
@@ -246,33 +247,29 @@ private fun ThemePicker(settings: SettingsStore, accent: Color) {
 }
 
 @Composable
-private fun ChoiceRow(title: String, value: String, options: List<String>, onChange: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = TextPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Box(Modifier.width(220.dp).clip(RoundedCornerShape(14.dp)).background(GlassStrong).clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Text(value, color = TextPrimary, fontSize = 13.sp)
-            }
-        }
-        AnimatedVisibility(expanded) { Column(Modifier.padding(top = 5.dp).align(Alignment.End)) { options.forEach { option -> Text(option, color = TextPrimary, modifier = Modifier.width(220.dp).clickable { onChange(option); expanded = false }.padding(12.dp)) } } }
+private fun ChoiceRow(title: String, value: String, options: List<String>, onSelect: (String) -> Unit) {
+    var index by remember(value) { mutableStateOf(options.indexOf(value).coerceAtLeast(0)) }
+    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text(value, color = TextSecondary, fontSize = 12.sp) }
+        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(GlassStrong).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(14.dp)).focusable().clickable {
+            index = (index + 1) % options.size; onSelect(options[index])
+        }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("Ändern", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
     }
 }
 
 @Composable
-private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
+private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    var value by remember(checked) { mutableStateOf(checked) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { value = !value; onCheckedChange(value) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
-        Box(Modifier.width(48.dp).height(28.dp).clip(RoundedCornerShape(20.dp)).background(if (checked) GlassStrong else Color(0x22111111))
-            .border(1.dp, Color.White.copy(.12f), RoundedCornerShape(20.dp)), Alignment.Center) {
-            Box(Modifier.width(20.dp).height(20.dp).clip(RoundedCornerShape(50)).background(if (checked) Color.White else TextSecondary).align(if (checked) Alignment.CenterEnd else Alignment.CenterStart).padding(4.dp))
-        }
+        Text(if (value) "AN" else "AUS", color = if (value) TextPrimary else TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun ActionRow(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = TextSecondary, modifier = Modifier.padding(end = 14.dp)); Column { Text(title, color = TextPrimary, fontSize = 15.sp); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = TextSecondary, modifier = Modifier.padding(end = 14.dp))
+        Column { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
     }
 }
