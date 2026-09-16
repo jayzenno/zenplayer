@@ -33,53 +33,44 @@ class PlaylistStore(private val context: Context) {
 
     suspend fun importPlaylistFromFile(file: File) = withContext(Dispatchers.IO) {
         require(file.exists()) { "Datei nicht gefunden." }
-        val parsed = file.inputStream().bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
-        require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
-        file.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, bufferSize = 64 * 1024) } }
-        channels = parsed
-        programmes = loadProgrammes()
+        val temp = File.createTempFile("zenplaylist", ".m3u", context.cacheDir)
+        try {
+            file.inputStream().use { input -> temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
+            val parsed = temp.inputStream().bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
+            require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
+            temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
+            channels = parsed
+            programmes = loadProgrammes()
+        } finally { temp.delete() }
     }
 
     suspend fun importPlaylistFromUrl(url: String) = withContext(Dispatchers.IO) {
         val clean = url.trim()
         require(clean.startsWith("http://") || clean.startsWith("https://")) { "Bitte eine gültige http(s)-URL eingeben." }
         val connection = (URL(clean).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15_000
-            readTimeout = 20_000
-            instanceFollowRedirects = true
+            connectTimeout = 15_000; readTimeout = 20_000; instanceFollowRedirects = true
             setRequestProperty("User-Agent", "ZenPlayer/1.0 AndroidTV")
             setRequestProperty("Accept", "application/x-mpegURL, audio/x-mpegurl, text/plain, */*")
         }
+        val temp = File.createTempFile("zenplaylist", ".m3u", context.cacheDir)
         try {
             require(connection.responseCode in 200..399) { "Server antwortet mit HTTP ${connection.responseCode}." }
-            val parsed = connection.inputStream.bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
+            connection.inputStream.use { input -> temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
+            val parsed = temp.inputStream().bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
             require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
-            connection.inputStream // intentionally not reused; stream is consumed above
-            // Fetch once more is avoided by parsing to a temporary file while streaming below.
-            val temp = File.createTempFile("zenplaylist", ".m3u", context.cacheDir)
-            try {
-                val second = (URL(clean).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15_000; readTimeout = 20_000; instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "ZenPlayer/1.0 AndroidTV")
-                }
-                second.inputStream.use { input -> temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
-                temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
-            } finally { temp.delete() }
+            temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
             channels = parsed
             programmes = loadProgrammes()
-        } finally { connection.disconnect() }
+        } finally { temp.delete(); connection.disconnect() }
     }
 
     fun importXtream(channels: List<Channel>, epg: List<EpgProgramme> = emptyList()) {
         require(channels.isNotEmpty()) { "Xtream hat keine Live-Sender geliefert." }
-        playlistFile.delete()
-        this.channels = channels
-        this.programmes = epg
+        playlistFile.delete(); this.channels = channels; this.programmes = epg
     }
 
     fun importEpg(text: String) {
-        epgFile.writeText(text)
-        programmes = epgRepository.replaceFromXmlTv(text, channels)
+        epgFile.writeText(text); programmes = epgRepository.replaceFromXmlTv(text, channels)
     }
 
     fun clear() {
