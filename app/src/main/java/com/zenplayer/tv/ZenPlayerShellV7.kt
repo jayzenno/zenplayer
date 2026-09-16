@@ -40,7 +40,6 @@ fun ZenPlayerShellV7(settings: SettingsStore) {
     val store = remember { PlaylistStore(context) }
     val accent = when (settings.ui.theme) { ZenTheme.AURORA -> Color(0xFF70E6FF); ZenTheme.OBSIDIAN -> Color(0xFFAAA8FF); ZenTheme.FROST -> Color(0xFF9FEAFF); ZenTheme.AMBER -> Color(0xFFFFC46E) }
 
-    // Only intercept Back while V7 owns the screen. V6 keeps its own Back handling on Home.
     BackHandler(enabled = replay != null || page != "home") {
         if (replay != null) replay = null else page = "home"
     }
@@ -76,7 +75,7 @@ fun ZenPlayerShellV7(settings: SettingsStore) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 30.dp)) {
             item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                V7Button("‹ Gestern", accent, modifier = Modifier.focusRequester(firstFocus)) { day = (day - 1).coerceAtLeast(-1) }
+                V7Button("‹ Gestern", accent, { day = (day - 1).coerceAtLeast(-1) }, Modifier.focusRequester(firstFocus))
                 V7Button("Heute", accent) { day = 0 }
                 V7Button("Morgen ›", accent) { day = (day + 1).coerceAtMost(1) }
             } }
