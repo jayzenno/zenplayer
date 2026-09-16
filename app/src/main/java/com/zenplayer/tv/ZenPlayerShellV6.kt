@@ -122,7 +122,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(page, accent, homeFocusRequester) { selected ->
+                V6Sidebar(page, accent, homeFocusRequester, { homeBackReset = false }) { selected ->
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
@@ -140,7 +140,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, onHomeFocus: () -> Unit, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
@@ -181,7 +181,7 @@ private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequ
                     .focusRequester(requester)
                     .onFocusChanged {
                         focused = it.isFocused
-                        if (id == "home" && it.isFocused) homeBackReset = false
+                        if (id == "home" && it.isFocused) onHomeFocus()
                     }
                     .focusable()
                     .onKeyEvent { e ->
