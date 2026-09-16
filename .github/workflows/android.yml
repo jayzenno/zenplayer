@@ -37,6 +37,7 @@ jobs:
           s = s.replace('info.activityInfo.packageManager', 'LocalContext.current.packageManager')
           s = s.replace('Sidebar(page, accent) { page = it }', 'ZenSidebar(page, accent, settings) { page = it }')
           s = s.replace('0 -> HomeScreen(store, accent, refresh) { playing = it }', '0 -> ZenHomeScreen(store, accent, refresh, { playing = it }) { page = 2 }')
+          s = s.replace('else -> SettingsScreen(settings, accent)', 'else -> Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1.7f)) { SettingsScreen(settings, accent) }; Box(Modifier.weight(1f)) { SidebarCustomizer(settings, accent) } }')
           p.write_text(s)
           PY2
 
