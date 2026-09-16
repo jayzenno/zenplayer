@@ -68,84 +68,80 @@ import kotlinx.coroutines.launch
 private val V6Text = Color(0xFFF7F8FC)
 private val V6Muted = Color(0xFF8D96AA)
 private val V6Bg = Color(0xFF05070D)
-private val V6Surface = Color(0xB80F141E)
+private val V6Surface = Color(0xE6111722)
 
 @Composable
 fun ZenPlayerShellV6(settings: SettingsStore) {
-    val context = LocalContext.current
-    val store = remember { PlaylistStore(context) }
-    val ui = settings.ui
-    val accent = when (ui.theme) {
-        ZenTheme.AURORA -> Color(0xFF70E6FF)
-        ZenTheme.OBSIDIAN -> Color(0xFFAAA8FF)
-        ZenTheme.FROST -> Color(0xFF9FEAFF)
-        ZenTheme.AMBER -> Color(0xFFFFC46E)
-    }
+    val store = remember { PlaylistStore(settings) }
     var page by remember { mutableStateOf("home") }
-    var sourceReturn by remember { mutableStateOf("home") }
-    var sources by remember { mutableStateOf(false) }
     var demo by remember { mutableStateOf(false) }
-    var playerIndex by remember { mutableIntStateOf(-1) }
+    var playerIndex by remember { mutableIntStateOf(0) }
+    var playerActive by remember { mutableStateOf(false) }
+    var sources by remember { mutableStateOf(false) }
+    var sourceReturn by remember { mutableStateOf("home") }
     var zapUntil by remember { mutableLongStateOf(0L) }
     val channels = if (demo) DemoData.channels() else store.channels
+    val accent = Color(0xFF7C8CFF)
+
+    fun openSources(returnPage: String) {
+        sourceReturn = returnPage
+        sources = true
+    }
+    fun playChannel(channel: Channel) {
+        val list = if (demo) DemoData.channels() else store.channels
+        playerIndex = list.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
+        playerActive = true
+        zapUntil = System.currentTimeMillis() + 2800L
+    }
+    fun closePlayer() { playerActive = false }
 
     BackHandler {
         when {
-            playerIndex >= 0 -> playerIndex = -1
+            playerActive -> closePlayer()
             sources -> { sources = false; page = sourceReturn }
             page != "home" -> page = "home"
+            demo -> demo = false
             else -> Unit
         }
     }
 
     Box(Modifier.fillMaxSize().background(V6Bg)) {
-        ZenAnimatedBackdrop(ui.theme, ui.animatedBackdrop, !ui.reducedMotion)
-        when {
-            sources -> V6Sources(store, accent, onBack = { sources = false; page = sourceReturn }, onDone = { sources = false; page = sourceReturn })
-            playerIndex >= 0 && playerIndex < channels.size -> {
-                val channel = channels[playerIndex]
-                ZenPlayerScreen(
-                    channel = channel,
-                    settings = settings,
-                    showChrome = false,
-                    onBack = { playerIndex = -1 },
-                    onRemoteKey = { key ->
-                        when (key) {
-                            Key.DirectionUp -> {
-                                if (channels.isNotEmpty()) {
-                                    playerIndex = (playerIndex - 1 + channels.size) % channels.size
-                                    zapUntil = System.currentTimeMillis() + 2800L
+        ZenAnimatedBackdrop(settings)
+        Row(Modifier.fillMaxSize().padding(18.dp)) {
+            V6Sidebar(page, accent) { page = it }
+            Spacer(Modifier.width(22.dp))
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                when {
+                    sources -> V6Sources(store, accent, { sources = false; page = sourceReturn }, { sources = false; page = sourceReturn })
+                    playerActive && channels.isNotEmpty() -> {
+                        val safeIndex = playerIndex.coerceIn(0, channels.lastIndex)
+                        val current = channels[safeIndex]
+                        ZenPlayerScreen(
+                            channel = current,
+                            settings = settings,
+                            onBack = ::closePlayer,
+                            showChrome = false,
+                            onRemoteKey = { key ->
+                                when (key) {
+                                    Key.DirectionUp, Key.DirectionDown -> {
+                                        if (channels.isNotEmpty()) {
+                                            val delta = if (key == Key.DirectionUp) -1 else 1
+                                            playerIndex = (safeIndex + delta + channels.size) % channels.size
+                                            zapUntil = System.currentTimeMillis() + 2800L
+                                        }
+                                        true
+                                    }
+                                    else -> false
                                 }
-                                true
                             }
-                            Key.DirectionDown -> {
-                                if (channels.isNotEmpty()) {
-                                    playerIndex = (playerIndex + 1) % channels.size
-                                    zapUntil = System.currentTimeMillis() + 2800L
-                                }
-                                true
-                            }
-                            else -> false
-                        }
+                        )
+                        V6ZapOverlay(current, accent, zapUntil)
                     }
-                )
-                V6ZapOverlay(channel, accent, zapUntil)
-            }
-            else -> {
-                Row(Modifier.fillMaxSize().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    V6Sidebar(page, accent) { page = it }
-                    Box(Modifier.weight(1f).fillMaxHeight()) {
-                        when (page) {
-                            "home" -> V6Home(store, demo, accent,
-                                onSources = { sourceReturn = page; sources = true },
-                                onDemo = { demo = true },
-                                onExitDemo = { demo = false },
-                                onPlay = { c -> playerIndex = channels.indexOf(c); zapUntil = System.currentTimeMillis() + 2800L })
-                            "epg" -> V6Epg(store, demo, accent) { c -> playerIndex = channels.indexOf(c); zapUntil = System.currentTimeMillis() + 2800L }
-                            "search" -> V6Search(store, demo, accent) { c -> playerIndex = channels.indexOf(c); zapUntil = System.currentTimeMillis() + 2800L }
-                            else -> V6Settings(settings, accent) { sourceReturn = page; sources = true }
-                        }
-                    }
+                    page == "home" -> V6Home(store, demo, accent, { openSources("home") }, { demo = true }, { demo = false }, ::playChannel)
+                    page == "epg" -> V6Epg(store, demo, accent, ::playChannel)
+                    page == "search" -> V6Search(store, demo, accent, ::playChannel)
+                    page == "settings" -> V6Settings(settings, accent) { openSources("settings") }
+                    else -> V6Home(store, demo, accent, { openSources("home") }, { demo = true }, { demo = false }, ::playChannel)
                 }
             }
         }
@@ -154,14 +150,13 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 
 @Composable
 private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
-    val ids = listOf("home", "epg", "search", "settings")
+    val items = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
-    Column(Modifier.width(82.dp).fillMaxHeight().background(Color.White.copy(.045f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.width(58.dp).height(58.dp).background(accent.copy(.16f), RoundedCornerShape(18.dp)), Alignment.Center) { Text("Z", color = V6Text, fontSize = 25.sp, fontWeight = FontWeight.Black) }
-        ids.forEachIndexed { i, id ->
+    Column(Modifier.width(66.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically), horizontalAlignment = Alignment.CenterHorizontally) {
+        items.forEachIndexed { i, id ->
             var focused by remember { mutableStateOf(false) }
             val active = focused || page == id
             Box(Modifier.width(58.dp).height(58.dp)
@@ -191,7 +186,7 @@ private fun V6Home(store: PlaylistStore, demo: Boolean, accent: Color, onSources
         } else {
             V6Action("Quelle verwalten", "Playlist / Xtream", Icons.Default.Source, accent, onSources)
             Spacer(Modifier.height(14.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(bottom = 24.dp)) { items(channels) { V6Channel(it, accent, onPlay) } }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(bottom = 24.dp)) { items(channels) { channel -> V6Channel(channel, accent) { onPlay(channel) } } }
         }
     }
 }
@@ -298,8 +293,8 @@ private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, onPlay:
         Text("Suche", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text("Fokus öffnet nichts · erst OK startet die Eingabe", color = V6Muted, fontSize = 13.sp)
         OutlinedTextField(query, { query = it }, label = { Text("Sender suchen…") }, readOnly = !editing, singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).onFocusChanged { keyboard.hide() }
-                .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { editing = true; keyboard.show(); true } else false })
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).onFocusChanged { keyboard?.hide() }
+                .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { editing = true; keyboard?.show(); true } else false })
         Spacer(Modifier.height(10.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V6Channel(it, accent) { onPlay(it) } } }
     }
@@ -307,7 +302,6 @@ private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, onPlay:
 
 @Composable
 private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, onDone: () -> Unit) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     var url by remember { mutableStateOf("") }
@@ -325,15 +319,26 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             V6SourceCard("M3U / M3U8", accent, Modifier.weight(1f)) {
                 V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
-                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing, { editing = "url"; keyboard.show() }, keyboard)
+                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing, { editing = "url"; keyboard?.show() }, keyboard)
                 V6SourceButton("URL importieren", accent) { scope.launch { status = "URL wird geladen…"; store.importPlaylistFromUrl(url.trim()).onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" } } }
             }
             V6SourceCard("Xtream Codes", accent, Modifier.weight(1f)) {
-                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing, { editing = "server"; keyboard.show() }, keyboard)
-                V6TvInput("Benutzername", user, { user = it }, "user", editing, { editing = "user"; keyboard.show() }, keyboard)
-                V6TvInput("Passwort", pass, { pass = it }, "pass", editing, { editing = "pass"; keyboard.show() }, keyboard)
+                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing, { editing = "server"; keyboard?.show() }, keyboard)
+                V6TvInput("Benutzername", user, { user = it }, "user", editing, { editing = "user"; keyboard?.show() }, keyboard)
+                V6TvInput("Passwort", pass, { pass = it }, "pass", editing, { editing = "pass"; keyboard?.show() }, keyboard)
                 V6SourceButton("Xtream verbinden", accent) {
-                    scope.launch { status = "Xtream wird verbunden…"; XtreamClient(server.trim(), user.trim(), pass).load().onSuccess { list -> store.importXtream(list); status = "${list.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "Xtream-Verbindung fehlgeschlagen" } }
+                    scope.launch {
+                        status = "Xtream wird verbunden…"
+                        val result = XtreamClient(server.trim(), user.trim(), pass).load()
+                        if (result.isSuccess) {
+                            val list = result.getOrThrow()
+                            store.importXtream(list)
+                            status = "${list.size} Sender importiert"
+                            onDone()
+                        } else {
+                            status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen"
+                        }
+                    }
                 }
             }
         }
@@ -343,39 +348,41 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
 
 @Composable
 private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, startEditing: () -> Unit, keyboard: androidx.compose.ui.platform.SoftwareKeyboardController?) {
-    val active = editing == id
-    OutlinedTextField(value, onValue, label = { Text(label) }, readOnly = !active, singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).onFocusChanged { keyboard?.hide() }
+    OutlinedTextField(value, onValue, label = { Text(label) }, singleLine = true, readOnly = editing != id,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp).onFocusChanged { keyboard?.hide() }
             .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { startEditing(); true } else false })
 }
 
 @Composable
 private fun V6SourceCard(title: String, accent: Color, modifier: Modifier, content: @Composable () -> Unit) {
-    Column(modifier.background(Color.White.copy(.055f), RoundedCornerShape(20.dp)).border(1.dp, Color.White.copy(.09f), RoundedCornerShape(20.dp)).padding(18.dp)) { Text(title, color = V6Text, fontSize = 18.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(10.dp)); content() }
+    Column(modifier.background(Color.White.copy(.045f), RoundedCornerShape(22.dp)).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(22.dp)).padding(18.dp)) {
+        Text(title, color = V6Text, fontSize = 17.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(10.dp)); content()
+    }
 }
 
 @Composable
 private fun V6SourceButton(title: String, accent: Color, action: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.padding(top = 8.dp).focusable().onFocusChanged { focused = it.isFocused }
+    Box(Modifier.fillMaxWidth().height(54.dp).focusable().onFocusChanged { focused = it.isFocused }
         .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { action(); true } else false }
-        .background(if (focused) accent.copy(.17f) else Color.White.copy(.055f), RoundedCornerShape(12.dp))
-        .border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.08f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) { Text(title, color = V6Text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+        .background(if (focused) accent.copy(.18f) else Color.White.copy(.05f), RoundedCornerShape(15.dp))
+        .border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.08f), RoundedCornerShape(15.dp)), Alignment.Center) {
+        Text(title, color = V6Text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable
 private fun V6Settings(settings: SettingsStore, accent: Color, onSources: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        Text("Einstellungen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text("Alles mit D-Pad + OK", color = V6Muted, fontSize = 13.sp)
-        Spacer(Modifier.height(16.dp))
-        V6SourceCard("Player", accent, Modifier.fillMaxWidth()) { Text("Engine: ${settings.player.engine.label}", color = V6Text); Text("Buffer: ${settings.player.bufferMode.label}", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
-        Spacer(Modifier.height(10.dp))
-        V6SourceCard("Live TV", accent, Modifier.fillMaxWidth()) { Text("Shared Catch-up: ${if (settings.player.preferCatchupSibling) "an" else "aus"}", color = V6Muted) }
-        Spacer(Modifier.height(10.dp))
-        V6SourceCard("Darstellung", accent, Modifier.fillMaxWidth()) { Text("Theme: ${settings.ui.theme.label}", color = V6Text); Text("Glasstärke: ${settings.ui.glassIntensity}/10", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
-        V6SourceButton("Quellen öffnen", accent, onSources)
+        Text("Settings", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(12.dp))
+        Text("Player: ${settings.player.engine.label}", color = V6Muted, fontSize = 13.sp)
+        Text("Buffer: ${settings.player.bufferMode.label}", color = V6Muted, fontSize = 13.sp)
+        Text("Theme: ${settings.ui.theme.label}", color = V6Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(20.dp))
+        V6SourceButton("Quellen verwalten", accent, onSources)
     }
 }
 
-private fun initialsV6(name: String): String = name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }
+private fun initialsV6(name: String): String = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "TV" }
