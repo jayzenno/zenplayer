@@ -1,21 +1,10 @@
 package com.zenplayer.tv
 
 import android.os.Bundle
-import android.os.SystemClock
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
@@ -24,20 +13,6 @@ class MainActivity : ComponentActivity() {
         ZenLogger.init(this)
         ZenLogger.info("APP", "MainActivity.onCreate")
         setContent {
-            var exitDialog by remember { mutableStateOf(false) }
-            var lastBack by remember { mutableLongStateOf(0L) }
-            val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
-
-            BackHandler {
-                val moved = focusManager.moveFocus(FocusDirection.Left)
-                if (moved) {
-                    lastBack = 0L
-                } else {
-                    val now = SystemClock.elapsedRealtime()
-                    if (now - lastBack <= 2000L) exitDialog = true else lastBack = now
-                }
-            }
-
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     primary = Color(0xFF70E6FF),
@@ -47,16 +22,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV3(SettingsStore(this@MainActivity))
-                if (exitDialog) {
-                    AlertDialog(
-                        onDismissRequest = { exitDialog = false },
-                        title = { Text("ZenPlayer schließen?") },
-                        text = { Text("Möchtest du ZenPlayer wirklich beenden?") },
-                        confirmButton = { TextButton(onClick = { finish() }) { Text("Beenden") } },
-                        dismissButton = { TextButton(onClick = { exitDialog = false }) { Text("Abbrechen") } }
-                    )
-                }
+                ZenPlayerShellV4(SettingsStore(this@MainActivity))
             }
         }
     }
