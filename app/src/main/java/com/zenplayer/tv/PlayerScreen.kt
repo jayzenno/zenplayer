@@ -62,7 +62,9 @@ import java.util.Locale
 private class PlayerController(
     val playPause: () -> Unit,
     val seek: (Long) -> Unit,
-    val isPlaying: () -> Boolean
+    val isPlaying: () -> Boolean,
+    val position: () -> Long,
+    val duration: () -> Long
 )
 
 @Composable
@@ -79,6 +81,8 @@ fun ZenPlayerScreen(
     var notice by remember(channel.streamUrl) { mutableStateOf("") }
     var noticeUntil by remember(channel.streamUrl) { mutableLongStateOf(0L) }
     var playing by remember(channel.streamUrl) { mutableStateOf(true) }
+    var positionMs by remember(channel.streamUrl) { mutableLongStateOf(0L) }
+    var durationMs by remember(channel.streamUrl) { mutableLongStateOf(0L) }
 
     fun notify(text: String) {
         notice = text
@@ -105,10 +109,16 @@ fun ZenPlayerScreen(
     }
     LaunchedEffect(controller) {
         while (controller != null) {
-            playing = controller?.isPlaying?.invoke() == true
-            kotlinx.coroutines.delay(350L)
+            val c = controller ?: break
+            playing = c.isPlaying()
+            positionMs = c.position().coerceAtLeast(0L)
+            durationMs = c.duration().coerceAtLeast(0L)
+            kotlinx.coroutines.delay(250L)
         }
     }
+
+    val hasTimeline = durationMs > 0L
+    val progress = if (hasTimeline) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
 
     Box(
         Modifier
@@ -161,7 +171,7 @@ fun ZenPlayerScreen(
             Box(Modifier.fillMaxWidth().padding(26.dp), contentAlignment = Alignment.TopStart) {
                 Row(
                     Modifier
-                        .width(510.dp)
+                        .width(560.dp)
                         .background(Color(0xE8171D29), RoundedCornerShape(26.dp))
                         .border(1.dp, Color.White.copy(.13f), RoundedCornerShape(26.dp))
                         .padding(16.dp),
@@ -181,13 +191,32 @@ fun ZenPlayerScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (channel.isCatchupCapable) "CATCHUP" else "● LIVE", color = Color(0xFF70E6FF), fontSize = 10.sp)
                             Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date()), color = Color.White.copy(.58f), fontSize = 10.sp)
+                            if (hasTimeline) Text("${formatPlayerTime(positionMs)} / ${formatPlayerTime(durationMs)}", color = Color.White.copy(.58f), fontSize = 10.sp)
                         }
                     }
                 }
             }
 
             Box(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, bottom = 28.dp), contentAlignment = Alignment.BottomStart) {
-                Column(Modifier.fillMaxWidth().background(Color(0xD9121721), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp)).padding(16.dp)) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xD9121721), RoundedCornerShape(24.dp))
+                        .border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp))
+                        .padding(16.dp)
+                ) {
+                    if (hasTimeline) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(formatPlayerTime(positionMs), color = Color.White.copy(.72f), fontSize = 10.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Box(Modifier.weight(1f).height(6.dp).background(Color.White.copy(.12f), RoundedCornerShape(8.dp))) {
+                                Box(Modifier.fillMaxWidth(progress).height(6.dp).background(Color(0xFF70E6FF), RoundedCornerShape(8.dp)))
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Text(formatPlayerTime(durationMs), color = Color.White.copy(.52f), fontSize = 10.sp)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(42.dp).background(Color.White.copy(.08f), RoundedCornerShape(14.dp)), Alignment.Center) {
                             Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Color.White)
@@ -224,8 +253,14 @@ private fun ExoPlayerView(channel: Channel, settings: SettingsStore, onReady: (P
     LaunchedEffect(player) {
         onReady(PlayerController(
             playPause = { if (player.isPlaying) player.pause() else player.play() },
-            seek = { delta -> player.seekTo((player.currentPosition + delta).coerceAtLeast(0L)) },
-            isPlaying = { player.isPlaying }
+            seek = { delta ->
+                val duration = player.duration
+                val target = player.currentPosition + delta
+                player.seekTo(if (duration > 0L) target.coerceIn(0L, duration) else target.coerceAtLeast(0L))
+            },
+            isPlaying = { player.isPlaying },
+            position = { player.currentPosition },
+            duration = { player.duration.takeIf { it > 0L } ?: 0L }
         ))
     }
     AndroidView(factory = { ctx -> PlayerView(ctx).apply { useController = false; this.player = player; isFocusable = false; isFocusableInTouchMode = false } }, update = { it.player = player }, modifier = Modifier.fillMaxSize())
@@ -255,8 +290,14 @@ private fun VlcPlayerView(channel: Channel, settings: SettingsStore, onReady: (P
             mediaPlayer.play()
             onReady(PlayerController(
                 playPause = { if (mediaPlayer.isPlaying) mediaPlayer.pause() else mediaPlayer.play() },
-                seek = { delta -> mediaPlayer.time = (mediaPlayer.time + delta).coerceAtLeast(0L) },
-                isPlaying = { mediaPlayer.isPlaying }
+                seek = { delta ->
+                    val length = mediaPlayer.length
+                    val target = mediaPlayer.time + delta
+                    mediaPlayer.time = if (length > 0L) target.coerceIn(0L, length) else target.coerceAtLeast(0L)
+                },
+                isPlaying = { mediaPlayer.isPlaying },
+                position = { mediaPlayer.time },
+                duration = { mediaPlayer.length.takeIf { it > 0L } ?: 0L }
             ))
         }.onFailure { Toast.makeText(context, "VLC konnte den Stream nicht starten", Toast.LENGTH_LONG).show() }
     }
@@ -274,6 +315,15 @@ fun launchExternalPlayer(context: Context, url: String, packageName: String?): B
         context.startActivity(intent)
         true
     }.getOrDefault(false)
+}
+
+private fun formatPlayerTime(ms: Long): String {
+    val totalSeconds = (ms.coerceAtLeast(0L) / 1000L)
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) String.format(Locale.GERMANY, "%d:%02d:%02d", hours, minutes, seconds)
+    else String.format(Locale.GERMANY, "%02d:%02d", minutes, seconds)
 }
 
 private fun initialsPlayer(name: String): String = name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }
