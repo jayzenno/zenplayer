@@ -17,62 +17,40 @@ import androidx.compose.ui.graphics.Color
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Procedural cinematic backdrop: soft gradient fields and slow orbital light, no video assets. */
+/** Very slow cinematic light fields. No hard geometry, grids or video assets. */
 @Composable
 fun ZenAnimatedBackdrop(theme: ZenTheme, mode: AnimatedBackdrop, enabled: Boolean = true) {
     if (!enabled || mode == AnimatedBackdrop.NONE) return
-    val transition = rememberInfiniteTransition(label = "zen-cinematic-backdrop")
-    val phase by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(24000), RepeatMode.Reverse), label = "backdrop-phase")
-    val palette = remember(theme) {
+    val transition = rememberInfiniteTransition(label = "zen-premium-backdrop")
+    val phase by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(42000), RepeatMode.Reverse), label = "phase")
+    val colors = remember(theme) {
         when (theme) {
-            ZenTheme.AURORA -> Triple(Color(0xFF6E63FF), Color(0xFF21D4C4), Color(0xFF10152F))
-            ZenTheme.OBSIDIAN -> Triple(Color(0xFF5B7CFF), Color(0xFF9B72FF), Color(0xFF080B15))
-            ZenTheme.FROST -> Triple(Color(0xFF55D6CF), Color(0xFF6EA8FF), Color(0xFF0A2027))
-            ZenTheme.AMBER -> Triple(Color(0xFFFFB65C), Color(0xFFFF6E8A), Color(0xFF28120E))
+            ZenTheme.AURORA -> Triple(Color(0xFF56D7FF), Color(0xFF756BFF), Color(0xFF07151D))
+            ZenTheme.OBSIDIAN -> Triple(Color(0xFF9A91FF), Color(0xFF4C76FF), Color(0xFF080A14))
+            ZenTheme.FROST -> Triple(Color(0xFF8BE8FF), Color(0xFF6EA8FF), Color(0xFF07151B))
+            ZenTheme.AMBER -> Triple(Color(0xFFFFC36B), Color(0xFFFF7891), Color(0xFF1B0D0B))
         }
     }
     Canvas(Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val t = phase * (Math.PI * 2f).toFloat()
-        drawRect(Brush.linearGradient(listOf(palette.third, Color(0xFF06080D)), Offset(0f, 0f), Offset(w, h)))
+        val t = phase * 6.2831855f
+        drawRect(Brush.verticalGradient(listOf(Color(0xFF03050A), colors.third, Color(0xFF03050A))))
 
-        if (mode == AnimatedBackdrop.MESH) {
-            val step = 90f
-            var x = -step
-            while (x < w + step) {
-                val wave = sin(x * .008f + t) * h * .045f
-                drawLine(palette.first.copy(.035f), Offset(x, 0f), Offset(x + wave, h), 1f)
-                x += step
-            }
-            var y = 0f
-            while (y < h) {
-                val wave = cos(y * .009f + t * .7f) * w * .025f
-                drawLine(palette.second.copy(.025f), Offset(0f, y), Offset(w, y + wave), 1f)
-                y += step
-            }
+        fun light(x: Float, y: Float, radius: Float, color: Color, alpha: Float) {
+            drawCircle(Brush.radialGradient(listOf(color.copy(alpha), color.copy(alpha * .22f), Color.Transparent), center = Offset(x, y), radius = radius), radius, Offset(x, y))
         }
-
-        val p1 = Offset(w * (.28f + .10f * sin(t)), h * (.32f + .08f * cos(t * .8f)))
-        val p2 = Offset(w * (.78f + .08f * cos(t * .7f)), h * (.58f + .10f * sin(t * .65f)))
-        val p3 = Offset(w * (.48f + .12f * cos(t * .45f)), h * (.92f + .05f * sin(t * .6f)))
-        val r1 = minOf(w, h) * .52f
-        val r2 = minOf(w, h) * .46f
-        val r3 = minOf(w, h) * .38f
-        drawCircle(Brush.radialGradient(listOf(palette.first.copy(.22f), palette.first.copy(.07f), Color.Transparent), center = p1, radius = r1), r1, p1)
-        drawCircle(Brush.radialGradient(listOf(palette.second.copy(.17f), palette.second.copy(.05f), Color.Transparent), center = p2, radius = r2), r2, p2)
-        drawCircle(Brush.radialGradient(listOf(palette.first.copy(.10f), Color.Transparent), center = p3, radius = r3), r3, p3)
+        light(w * (.18f + .07f * sin(t * .32f)), h * (.24f + .05f * cos(t * .27f)), minOf(w,h) * .72f, colors.first, .105f)
+        light(w * (.80f + .06f * cos(t * .24f)), h * (.62f + .07f * sin(t * .21f)), minOf(w,h) * .62f, colors.second, .085f)
+        light(w * (.48f + .12f * sin(t * .17f)), h * (.92f + .03f * cos(t * .2f)), minOf(w,h) * .48f, colors.first, .045f)
 
         if (mode == AnimatedBackdrop.ORBIT) {
-            val center = Offset(w * .58f, h * .45f)
-            val orbit = minOf(w, h) * .30f
-            repeat(2) { i ->
-                val a = t * if (i == 0) 1f else -0.65f + i
-                val point = Offset(center.x + cos(a) * orbit, center.y + sin(a) * orbit * .55f)
-                drawCircle(palette.first.copy(.14f), minOf(w, h) * .08f, point)
-                drawCircle(palette.second.copy(.06f), minOf(w, h) * .18f, point)
-            }
+            light(w * (.52f + .14f * cos(t * .12f)), h * (.43f + .09f * sin(t * .12f)), minOf(w,h) * .34f, colors.second, .045f)
         }
-        drawRect(Color.Black.copy(.16f))
+        if (mode == AnimatedBackdrop.MESH) {
+            light(w * (.35f + .10f * sin(t * .16f)), h * (.56f + .08f * cos(t * .13f)), minOf(w,h) * .42f, colors.first, .055f)
+        }
+        // A faint veil gives the glass surfaces above it something to refract into.
+        drawRect(Color.Black.copy(.34f))
     }
 }
