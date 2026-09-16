@@ -28,13 +28,15 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Prepare TV focus behavior
+      - name: Prepare TV focus and glass behavior
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('app/src/main/java/com/zenplayer/tv/ZenPlayerShell.kt')
           s = p.read_text()
           s = s.replace('if (index == 0) Modifier.focusRequester(requester)', 'if (index == page) Modifier.focusRequester(requester)')
+          s = s.replace('val ui = settings.ui', 'val ui = settings.ui\n    ZenGlass.intensity = ui.glassIntensity')
+          s = s.replace('private val Surface = Color.White.copy(alpha = .055f)', 'private val Surface: Color get() = ZenGlass.surface()')
           p.write_text(s)
           PY
 
