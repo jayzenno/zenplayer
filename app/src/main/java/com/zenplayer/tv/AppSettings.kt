@@ -29,6 +29,7 @@ data class PlayerSettings(
 data class UiSettings(
     val theme: ZenTheme = ZenTheme.AURORA,
     val channelListStyle: ChannelListStyle = ChannelListStyle.CINEMATIC,
+    val glassIntensity: Int = 7,
     val showLogos: Boolean = true,
     val showGroupHeaders: Boolean = true,
     val animations: Boolean = true,
@@ -79,6 +80,7 @@ class SettingsStore(context: Context) {
 
     private fun loadUi() = UiSettings(
         theme = enum("theme", ZenTheme.AURORA), channelListStyle = enum("listStyle", ChannelListStyle.CINEMATIC),
+        glassIntensity = prefs.getInt("glassIntensity", 7).coerceIn(1, 10),
         showLogos = prefs.getBoolean("showLogos", true), showGroupHeaders = prefs.getBoolean("groupHeaders", true),
         animations = prefs.getBoolean("animations", true), reducedMotion = prefs.getBoolean("reducedMotion", false), clock24h = prefs.getBoolean("clock24h", true)
     )
@@ -109,7 +111,8 @@ class SettingsStore(context: Context) {
     )
 
     private fun saveUi(v: UiSettings) = prefs.edit().putString("theme", v.theme.name).putString("listStyle", v.channelListStyle.name)
-        .putBoolean("showLogos", v.showLogos).putBoolean("groupHeaders", v.showGroupHeaders).putBoolean("animations", v.animations)
+        .putInt("glassIntensity", v.glassIntensity.coerceIn(1, 10)).putBoolean("showLogos", v.showLogos)
+        .putBoolean("groupHeaders", v.showGroupHeaders).putBoolean("animations", v.animations)
         .putBoolean("reducedMotion", v.reducedMotion).putBoolean("clock24h", v.clock24h).apply()
     private fun savePlayer(v: PlayerSettings) = prefs.edit().putString("buffer", v.bufferMode.name).putBoolean("startLive", v.startLiveImmediately)
         .putBoolean("autoNext", v.autoPlayNext).putBoolean("rememberPosition", v.rememberPosition).putBoolean("hardware", v.hardwareAcceleration)
