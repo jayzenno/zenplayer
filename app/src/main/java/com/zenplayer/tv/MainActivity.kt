@@ -25,5 +25,6 @@ class MainActivity : ComponentActivity() {
                 ZenPlayerShellV6(SettingsStore(this@MainActivity))
             }
         }
+        // CI trigger: V6 compile fixes are now on main.
     }
 }
