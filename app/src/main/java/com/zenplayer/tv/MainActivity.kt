@@ -22,9 +22,9 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                ZenPlayerShellV7(SettingsStore(this@MainActivity))
             }
         }
-        // CI trigger: V6 compile fixes are now on main.
+        // CI trigger: V7 EPG/replay layer.
     }
 }
