@@ -13,6 +13,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.LocalFocusManager
@@ -24,8 +25,8 @@ class MainActivity : ComponentActivity() {
         ZenLogger.init(this)
         ZenLogger.info("APP", "MainActivity.onCreate")
         setContent {
-            var exitDialog by mutableStateOf(false)
-            var lastBack by mutableLongStateOf(0L)
+            var exitDialog by remember { mutableStateOf(false) }
+            var lastBack by remember { mutableLongStateOf(0L) }
             val focusManager = LocalFocusManager.current
 
             BackHandler {
