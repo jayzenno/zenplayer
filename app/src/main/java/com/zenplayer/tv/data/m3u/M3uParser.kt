@@ -1,4 +1,4 @@
-package com.zenplayer.tv
+package com.zenplayer.tv.data.m3u
 
 import com.zenplayer.tv.domain.model.Channel
 import java.io.Reader
