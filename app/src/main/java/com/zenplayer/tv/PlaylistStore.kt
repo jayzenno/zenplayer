@@ -29,7 +29,9 @@ class PlaylistStore(private val context: Context) {
         require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
         playlistFile.writeText(text)
         channels = parsed
-        programmes = loadProgrammes()
+        // Do not synchronously re-parse a potentially huge XMLTV file here.
+        // EPG is loaded on startup / explicit EPG refresh instead.
+        programmes = emptyList()
     }
 
     suspend fun importPlaylistFromUri(uri: Uri) = withContext(Dispatchers.IO) {
@@ -42,7 +44,7 @@ class PlaylistStore(private val context: Context) {
             require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
             temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
             channels = parsed
-            programmes = loadProgrammes()
+            programmes = emptyList()
         } finally { temp.delete() }
     }
 
@@ -55,7 +57,7 @@ class PlaylistStore(private val context: Context) {
             require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
             temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
             channels = parsed
-            programmes = loadProgrammes()
+            programmes = emptyList()
         } finally { temp.delete() }
     }
 
@@ -77,7 +79,7 @@ class PlaylistStore(private val context: Context) {
             require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
             temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
             channels = parsed
-            programmes = loadProgrammes()
+            programmes = emptyList()
         } finally { temp.delete(); connection.disconnect() }
     }
 
