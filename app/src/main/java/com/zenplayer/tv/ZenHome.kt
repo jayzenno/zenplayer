@@ -81,8 +81,16 @@ private fun ActionCard(title: String, subtitle: String, icon: androidx.compose.u
 private fun ChannelCard(channel: Channel, accent: Color, requester: FocusRequester?, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().height(58.dp).background(if (focused) accent.copy(.14f) else Color.White.copy(.045f), RoundedCornerShape(16.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.07f), RoundedCornerShape(16.dp)).then(if (requester != null) Modifier.focusRequester(requester) else Modifier).onFocusChanged { focused = it.isFocused }.focusable().clickable(onClick = onClick).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(initials(channel.name), color = if (focused) accent else Color(0xFF9EA6B8), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
+        Text(channelInitials(channel.name), color = if (focused) accent else Color(0xFF9EA6B8), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 16.dp))
         Column(Modifier.weight(1f)) { Text(channel.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold); Text(channel.group ?: "Live TV", color = Color(0xFF9EA6B8), fontSize = 10.sp) }
         Icon(Icons.Default.PlayArrow, null, tint = if (focused) Color.White else Color(0xFF747C8E))
     }
 }
+
+private fun channelInitials(name: String): String = name
+    .trim()
+    .split(Regex("\\s+"))
+    .filter { it.isNotBlank() }
+    .take(2)
+    .joinToString("") { it.first().uppercaseChar().toString() }
+    .ifBlank { "TV" }
