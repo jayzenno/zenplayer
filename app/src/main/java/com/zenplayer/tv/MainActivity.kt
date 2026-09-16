@@ -22,7 +22,10 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV4(SettingsStore(this@MainActivity))
+                // V4 introduced a focus regression on TV remotes. Keep the stable
+                // V3 shell as the runtime entry point until V4 navigation is fixed.
+                // V3 also retains the built-in demo mode for testing without a playlist.
+                ZenPlayerShellV3(SettingsStore(this@MainActivity))
             }
         }
     }
