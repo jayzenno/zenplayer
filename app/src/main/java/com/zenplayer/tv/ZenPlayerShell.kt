@@ -101,7 +101,7 @@ fun ZenPlayerShell(settings: SettingsStore) {
                     }
                 }
             }
-            playing?.let { channel -> ZenPlayerScreen(channel, settings) { playing = null } }
+            playing?.let { channel -> ZenPlayerScreen(channel, settings, onBack = { playing = null }) }
         }
     }
 }
@@ -256,9 +256,6 @@ private fun SettingsV2(settings: SettingsStore, accent: Color, openSources: () -
 private fun settingsTextPlaceholder() = "M3U / M3U8 / Xtream hinzufügen, wechseln oder neu laden."
 
 @Composable private fun SettingsPanelV2(title: String, subtitle: String, content: @Composable () -> Unit) { Column(Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(18.dp)).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(18.dp)).padding(15.dp)) { Text(title, color = Primary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold); Text(subtitle, color = Secondary, fontSize = 10.sp); Spacer(Modifier.height(10.dp)); content() } }
-
 @Composable private fun ChoiceV2(label: String, value: String, options: List<String>, accent: Color, change: (String) -> Unit) { var f by remember { mutableStateOf(false) }; var index by remember(value) { mutableIntStateOf(options.indexOf(value).coerceAtLeast(0)) }; Row(Modifier.fillMaxWidth().height(48.dp).background(if (f) accent.copy(.1f) else Surface, RoundedCornerShape(12.dp)).border(if (f) 2.dp else 1.dp, if (f) accent else Color.Transparent, RoundedCornerShape(12.dp)).onFocusChanged { f = it.isFocused }.focusable().onKeyEvent { e -> if (e.type != KeyEventType.KeyUp) return@onKeyEvent false; when(e.key) { Key.DirectionLeft -> { index = (index - 1 + options.size) % options.size; change(options[index]); true }; Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { index = (index + 1) % options.size; change(options[index]); true }; else -> false } }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, color = Secondary, fontSize = 11.sp); Spacer(Modifier.weight(1f)); Text(value, color = Primary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold); Text("  ${index + 1}/${options.size}", color = accent, fontSize = 9.sp) } }
-
 @Composable private fun ToggleV2(label: String, checked: Boolean, accent: Color, change: (Boolean) -> Unit) { var f by remember { mutableStateOf(false) }; Row(Modifier.fillMaxWidth().height(44.dp).onFocusChanged { f = it.isFocused }.tvAction { change(!checked) }.background(if (f) accent.copy(.1f) else Color.Transparent, RoundedCornerShape(11.dp)).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, color = Primary, fontSize = 12.sp); Spacer(Modifier.weight(1f)); Text(if (checked) "AN" else "AUS", color = if (checked) accent else Secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold) } }
-
 private fun initials2(name: String): String = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }.ifBlank { "TV" }
