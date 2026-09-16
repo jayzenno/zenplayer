@@ -16,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
