@@ -7,7 +7,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,7 +41,6 @@ import com.zenplayer.tv.domain.model.Channel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val V6Text = Color(0xFFF7F8FC)
@@ -134,7 +132,10 @@ private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
     LaunchedEffect(page) {
-        delay(60)
+        // Do not rely on an arbitrary millisecond delay. Compose/Android TV focus is
+        // only reliable once the focus targets have actually been placed in the tree.
+        withFrameNanos { }
+        withFrameNanos { }
         requesters[ids.indexOf(page).coerceAtLeast(0)].requestFocus()
     }
 
@@ -142,7 +143,6 @@ private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
         Modifier
             .width(82.dp)
             .wrapContentHeight()
-            .focusGroup()
             .background(Color.White.copy(.045f), RoundedCornerShape(24.dp))
             .border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp))
             .padding(10.dp),
