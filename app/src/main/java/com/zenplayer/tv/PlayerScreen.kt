@@ -6,14 +6,8 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Text
+import androidx.compose.foundation.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -23,8 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -34,6 +26,7 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
+/** Playback surface. Navigation/control chrome is owned by the TV shell. */
 @Composable
 fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
@@ -46,7 +39,7 @@ fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Uni
                 launchExternalPlayer(context, channel.streamUrl, settings.player.externalPlayerPackage)
                 onBack()
             }
-            PlayerLaunchFallback()
+            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center)
         }
     }
 }
@@ -54,19 +47,19 @@ fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Uni
 @Composable
 private fun ExoPlayerView(channel: Channel, settings: SettingsStore) {
     val context = LocalContext.current
-    val startImmediately = settings.player.startLiveImmediately
     val player = remember(channel.streamUrl) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(channel.streamUrl)))
             prepare()
-            playWhenReady = startImmediately
+            playWhenReady = settings.player.startLiveImmediately
         }
     }
     DisposableEffect(player) { onDispose { player.release() } }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(factory = { PlayerView(it).apply { useController = true; this.player = player; requestFocus() } }, modifier = Modifier.fillMaxSize())
-        PlayerTitle(channel, "ExoPlayer", Modifier.align(Alignment.TopStart))
-    }
+    AndroidView(
+        factory = { ctx -> PlayerView(ctx).apply { useController = false; this.player = player; isFocusable = false; isFocusableInTouchMode = false } },
+        update = { it.player = player },
+        modifier = Modifier.fillMaxSize()
+    )
 }
 
 @Composable
@@ -97,10 +90,7 @@ private fun VlcPlayerView(channel: Channel, settings: SettingsStore) {
             mediaPlayer.play()
         }.onFailure { Toast.makeText(context, "VLC konnte den Stream nicht starten", Toast.LENGTH_LONG).show() }
     }
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(factory = { videoLayout }, modifier = Modifier.fillMaxSize())
-        PlayerTitle(channel, "VLC / LibVLC", Modifier.align(Alignment.TopStart))
-    }
+    AndroidView(factory = { videoLayout }, modifier = Modifier.fillMaxSize())
 }
 
 private fun networkCaching(settings: SettingsStore): Int = when (settings.player.bufferMode) {
@@ -108,21 +98,6 @@ private fun networkCaching(settings: SettingsStore): Int = when (settings.player
     BufferMode.BALANCED -> 800
     BufferMode.HIGH -> 1800
     BufferMode.AUTO -> 800
-}
-
-@Composable
-private fun PlayerTitle(channel: Channel, engine: String, modifier: Modifier) {
-    Row(modifier.padding(24.dp).background(Color.Black.copy(.48f)).padding(horizontal = 14.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.width(300.dp)) {
-            Text(channel.name, color = Color.White, fontSize = 18.sp)
-            Text(engine, color = Color.White.copy(.65f), fontSize = 11.sp)
-        }
-    }
-}
-
-@Composable
-private fun PlayerLaunchFallback() {
-    Box(Modifier.fillMaxSize().background(Color.Black), Alignment.Center) { Text("Starte externen Player…", color = Color.White, fontSize = 20.sp) }
 }
 
 fun launchExternalPlayer(context: Context, url: String, packageName: String?): Boolean {
