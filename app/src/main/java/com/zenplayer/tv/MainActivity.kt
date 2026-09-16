@@ -9,6 +9,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ZenLogger.init(this)
         ZenLogger.info("APP", "MainActivity.onCreate")
-        setContent { ZenPlayerShell(SettingsStore(this)) }
+        setContent { ZenPlayerShellV3(SettingsStore(this)) }
     }
 }
