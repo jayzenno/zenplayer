@@ -2,7 +2,6 @@ package com.zenplayer.tv
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,12 +29,12 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
-    val names = mapOf("home" to "Home", "epg" to "EPG", "playlist" to "Playlist", "search" to "Suche", "settings" to "Settings")
-    val order = settings.ui.sidebarOrder.filter { it in names.keys }
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("Seitenleiste", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Text("Reihenfolge ändern oder Bereiche ausblenden. Settings bleibt als Sicherheitsanker sichtbar.", color = Color(0xFF9EA6B8), fontSize = 11.sp)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val names = linkedMapOf("home" to "Home", "epg" to "EPG", "search" to "Suche", "settings" to "Settings")
+    val order = settings.ui.sidebarOrder.filter { it in names.keys }.ifEmpty { names.keys.toList() }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Seitenleiste", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text("Reihenfolge und Sichtbarkeit der Navigation. Playlist bleibt bewusst unter Einstellungen.", color = Color(0xFF9EA6B8), fontSize = 11.sp)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             items(order) { id ->
                 SidebarEditRow(id, names.getValue(id), id in settings.ui.sidebarHidden, accent,
                     canMoveUp = order.indexOf(id) > 0,
@@ -47,10 +46,10 @@ fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
                         settings.updateUi(settings.ui.copy(sidebarHidden = hidden))
                     },
                     onMove = { direction ->
-                        val mutable = settings.ui.sidebarOrder.toMutableList()
+                        val mutable = settings.ui.sidebarOrder.filter { it in names.keys }.toMutableList()
                         val from = mutable.indexOf(id)
                         val to = (from + direction).coerceIn(0, mutable.lastIndex)
-                        if (from != to) {
+                        if (from >= 0 && from != to) {
                             val value = mutable.removeAt(from)
                             mutable.add(to, value)
                             settings.updateUi(settings.ui.copy(sidebarOrder = mutable))
@@ -58,34 +57,28 @@ fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
                     })
             }
         }
-        SmallFocusButton("Standardreihenfolge wiederherstellen", accent) {
-            settings.updateUi(settings.ui.copy(sidebarOrder = listOf("home", "epg", "playlist", "search", "settings"), sidebarHidden = emptySet()))
+        FocusButton("Standardreihenfolge", accent) {
+            settings.updateUi(settings.ui.copy(sidebarOrder = listOf("home", "epg", "search", "settings"), sidebarHidden = emptySet()))
         }
     }
 }
 
 @Composable
 private fun SidebarEditRow(id: String, title: String, hidden: Boolean, accent: Color, canMoveUp: Boolean, canMoveDown: Boolean, onToggle: () -> Unit, onMove: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().height(46.dp).background(Color.White.copy(.045f), RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(.07f), RoundedCornerShape(13.dp)).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(48.dp).background(Color.White.copy(.05f), RoundedCornerShape(14.dp)).border(1.dp, Color.White.copy(.09f), RoundedCornerShape(14.dp)).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = if (hidden) Color(0xFF666D7C) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        EditButton("↑", accent, canMoveUp) { onMove(-1) }
-        EditButton("↓", accent, canMoveDown) { onMove(1) }
-        EditButton(if (hidden) "AN" else "AUS", accent, id != "settings") { onToggle() }
+        FocusButton("↑", accent, canMoveUp) { onMove(-1) }
+        FocusButton("↓", accent, canMoveDown) { onMove(1) }
+        if (id != "settings") FocusButton(if (hidden) "AN" else "AUS", accent) { onToggle() }
     }
 }
 
 @Composable
-private fun EditButton(label: String, accent: Color, enabled: Boolean, onClick: () -> Unit) {
+private fun FocusButton(label: String, accent: Color, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.padding(start = 5.dp).background(if (focused && enabled) accent.copy(.18f) else Color.Transparent, RoundedCornerShape(8.dp)).border(if (focused && enabled) 1.dp else 0.dp, if (focused && enabled) accent else Color.Transparent, RoundedCornerShape(8.dp)).onFocusChanged { focused = it.isFocused }.focusable(enabled).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 8.dp, vertical = 5.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(start = 6.dp).focusable(enabled).onFocusChanged { focused = it.isFocused }.background(if (focused && enabled) accent.copy(.18f) else Color.Transparent, RoundedCornerShape(9.dp)).border(if (focused && enabled) 2.dp else 1.dp, if (focused && enabled) accent else Color.White.copy(.07f), RoundedCornerShape(9.dp)).tvAction(enabled, onClick).padding(horizontal = 9.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
         Text(label, color = if (enabled) Color.White else Color(0xFF4F5562), fontSize = 9.sp, fontWeight = FontWeight.Bold)
     }
 }
 
-@Composable
-private fun SmallFocusButton(title: String, accent: Color, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Box(Modifier.background(if (focused) accent.copy(.16f) else Color.White.copy(.04f), RoundedCornerShape(10.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.07f), RoundedCornerShape(10.dp)).onFocusChanged { focused = it.isFocused }.focusable().clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 7.dp)) {
-        Text(title, color = Color.White, fontSize = 10.sp)
-    }
-}
+private fun Modifier.tvAction(enabled: Boolean, action: () -> Unit): Modifier = this.then(if (enabled) Modifier.tvAction(action) else Modifier)
