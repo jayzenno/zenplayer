@@ -94,9 +94,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 V6Sidebar(page, accent) { page = it }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     when (page) {
-                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true }, { demo = false }) { c ->
-                            playerIndex = channels.indexOf(c).coerceAtLeast(0); zapUntil = System.currentTimeMillis() + 2800L
-                        }
+                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true }, { demo = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0); zapUntil = System.currentTimeMillis() + 2800L }
                         "epg" -> V6Epg(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0); zapUntil = System.currentTimeMillis() + 2800L }
                         "search" -> V6Search(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0); zapUntil = System.currentTimeMillis() + 2800L }
                         else -> V6Settings(settings, accent) { sourceReturn = page; sources = true }
@@ -176,12 +174,7 @@ private fun V6ZapOverlay(channel: Channel, accent: Color, visibleUntil: Long) {
     Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.TopStart) {
         Row(Modifier.width(430.dp).background(Color(0xEC111721), RoundedCornerShape(24.dp)).border(1.dp, accent.copy(.55f), RoundedCornerShape(24.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.size(68.dp), contentScale = ContentScale.Fit) else Box(Modifier.size(68.dp).background(accent.copy(.12f), RoundedCornerShape(16.dp)), Alignment.Center) { Text(initialsV6(channel.name), color = accent, fontSize = 18.sp, fontWeight = FontWeight.Black) }
-            Column(Modifier.padding(start = 16.dp)) {
-                Text(channel.name, color = V6Text, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1)
-                Text(channel.group ?: "Live TV", color = V6Muted, fontSize = 11.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Text(if (channel.isCatchupCapable) "CATCHUP" else "● LIVE", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black); Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date()), color = V6Muted, fontSize = 10.sp) }
-            }
+            Column(Modifier.padding(start = 16.dp)) { Text(channel.name, color = V6Text, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1); Text(channel.group ?: "Live TV", color = V6Muted, fontSize = 11.sp); Spacer(Modifier.height(8.dp)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Text(if (channel.isCatchupCapable) "CATCHUP" else "● LIVE", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black); Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date()), color = V6Muted, fontSize = 10.sp) } }
         }
     }
 }
@@ -190,10 +183,9 @@ private fun V6ZapOverlay(channel: Channel, accent: Color, visibleUntil: Long) {
 private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, onPlay: (Channel) -> Unit) {
     val channels = if (demo) DemoData.channels() else store.channels
     val programmes = if (demo) DemoData.programmes() else store.programmes
-    var preview by remember { mutableStateOf<Pair<Channel, EpgProgramme>?>(null) }
     Column(Modifier.fillMaxSize()) {
         Text("EPG", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text("OK = Vorschau · OK auf Vorschau = Vollbild", color = V6Muted, fontSize = 13.sp)
+        Text("OK startet den gewählten Sender", color = V6Muted, fontSize = 13.sp)
         Spacer(Modifier.height(14.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             channels.forEach { channel ->
@@ -202,7 +194,7 @@ private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, onPlay: (C
                     item { Text(channel.name, color = accent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
                     items(ps) { p ->
                         var focused by remember(p.id) { mutableStateOf(false) }
-                        Row(Modifier.fillMaxWidth().height(58.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { if (preview?.second?.id == p.id) onPlay(channel) else preview = channel to p; true } else false }
+                        Row(Modifier.fillMaxWidth().height(58.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { onPlay(channel); true } else false }
                             .background(if (focused) accent.copy(.13f) else Color.White.copy(.05f), RoundedCornerShape(14.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.Transparent, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(p.start)), color = accent, fontSize = 11.sp, modifier = Modifier.width(52.dp))
                             Column(Modifier.weight(1f)) { Text(p.title, color = V6Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(p.category ?: "TV", color = V6Muted, fontSize = 9.sp) }
@@ -213,14 +205,6 @@ private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, onPlay: (C
             }
         }
     }
-    preview?.let { (channel, p) ->
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(.62f)), contentAlignment = Alignment.Center) {
-            Column(Modifier.width(520.dp).background(V6Surface, RoundedCornerShape(24.dp)).border(1.dp, accent.copy(.45f), RoundedCornerShape(24.dp)).padding(24.dp)) {
-                Text(p.title, color = V6Text, fontSize = 24.sp, fontWeight = FontWeight.Black); Text(channel.name, color = accent, fontSize = 12.sp); Spacer(Modifier.height(10.dp)); Text("Noch einmal OK zum Abspielen", color = V6Muted, fontSize = 12.sp); Text("Zurück schließt die Vorschau", color = V6Muted, fontSize = 10.sp)
-            }
-        }
-        BackHandler { preview = null }
-    }
 }
 
 @Composable
@@ -230,15 +214,16 @@ private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, onPlay:
     val channels = if (demo) DemoData.channels() else store.channels
     val filtered = channels.filter { query.isBlank() || it.name.contains(query, true) || it.group.orEmpty().contains(query, true) }
     Column(Modifier.fillMaxSize()) {
-        Text("Suche", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black); Text("Fokus öffnet nichts · erst OK startet die Eingabe", color = V6Muted, fontSize = 13.sp)
-        V6TvInput("Sender suchen…", query, { query = it }, "search", editing) { editing = "search" }
-        Spacer(Modifier.height(10.dp)); LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V6Channel(it, accent) { onPlay(it) } } }
+        Text("Suche", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("Fokus öffnet nichts · erst OK startet die Eingabe", color = V6Muted, fontSize = 13.sp)
+        V6TvInput("Sender suchen…", query, { query = it }, "search", if (editing) "search" else "") { editing = true }
+        Spacer(Modifier.height(10.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V6Channel(it, accent) { onPlay(it) } } }
     }
 }
 
 @Composable
 private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, onDone: () -> Unit) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf("") }
     var server by remember { mutableStateOf("") }
@@ -246,64 +231,25 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
     var pass by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf("") }
-    val keyboard = LocalSoftwareKeyboardController.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) scope.launch { status = "Playlist wird eingelesen…"; runCatching { store.importPlaylistFromUri(uri) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht gelesen werden" } } }
-
-    BackHandler {
-        if (editing.isNotEmpty()) {
-            editing = ""
-            keyboard?.hide()
-        } else {
-            onBack()
-        }
-    }
-
+    BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize()) {
         Text("Quelle hinzufügen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text("D-Pad navigieren · OK startet die Eingabe · Zurück geht zurück", color = V6Muted, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            item {
-                V6SourceCard("M3U / M3U8", accent, Modifier.fillMaxWidth()) {
-                    V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
-                    V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
-                    V6SourceButton("URL importieren", accent) {
-                        scope.launch {
-                            status = "URL wird geladen…"
-                            runCatching { store.importPlaylistFromUrl(url.trim()) }
-                                .onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }
-                                .onFailure { status = it.message ?: "M3U konnte nicht geladen werden" }
-                        }
-                    }
-                }
-            }
-            item {
-                V6SourceCard("Xtream Codes", accent, Modifier.fillMaxWidth()) {
-                    V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
-                    V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
-                    V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
-                    V6SourceButton("Xtream verbinden", accent) {
-                        scope.launch {
-                            status = "Xtream wird verbunden…"
-                            val result = XtreamClient(server.trim(), user.trim(), pass).load()
-                            if (result.isSuccess) {
-                                val list = result.getOrNull().orEmpty()
-                                store.importXtream(list)
-                                status = "${list.size} Sender importiert"
-                                onDone()
-                            } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen"
-                        }
-                    }
-                }
-            }
-            item {
-                Text(status, color = accent, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp))
-                V6SourceButton("Zurück", accent, onBack)
-            }
+        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item { V6SourceCard("M3U / M3U8", accent, Modifier.fillMaxWidth()) {
+                V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
+                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
+                V6SourceButton("URL importieren", accent) { scope.launch { status = "URL wird geladen…"; runCatching { store.importPlaylistFromUrl(url.trim()) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" } } }
+            } }
+            item { V6SourceCard("Xtream Codes", accent, Modifier.fillMaxWidth()) {
+                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
+                V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
+                V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
+                V6SourceButton("Xtream verbinden", accent) { scope.launch { status = "Xtream wird verbunden…"; val result = XtreamClient(server.trim(), user.trim(), pass).load(); if (result.isSuccess) { val list = result.getOrNull().orEmpty(); store.importXtream(list); status = "${list.size} Sender importiert"; onDone() } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen" } }
+            } }
+            item { Text(status, color = accent, fontSize = 12.sp); V6SourceButton("Zurück", accent, onBack) }
         }
     }
 }
@@ -312,25 +258,9 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
 private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, startEditing: () -> Unit) {
     val active = editing == id
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(active) {
-        if (active) keyboard?.showSoftwareKeyboard()
-    }
-    OutlinedTextField(
-        value,
-        onValue,
-        label = { Text(label) },
-        readOnly = !active,
-        singleLine = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-            .onKeyEvent { e ->
-                if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) {
-                    startEditing()
-                    true
-                } else false
-            }
-    )
+    LaunchedEffect(active) { if (active) keyboard?.show() }
+    OutlinedTextField(value, onValue, label = { Text(label) }, readOnly = !active, singleLine = true,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.DirectionCenter) { startEditing(); true } else false })
 }
 
 @Composable
@@ -348,7 +278,9 @@ private fun V6SourceButton(title: String, accent: Color, action: () -> Unit) {
 @Composable
 private fun V6Settings(settings: SettingsStore, accent: Color, onSources: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        Text("Einstellungen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black); Text("Alles mit D-Pad + OK", color = V6Muted, fontSize = 13.sp); Spacer(Modifier.height(16.dp))
+        Text("Einstellungen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("Alles mit D-Pad + OK", color = V6Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
         V6SourceCard("Player", accent, Modifier.fillMaxWidth()) { Text("Engine: ${settings.player.engine.label}", color = V6Text); Text("Buffer: ${settings.player.bufferMode.label}", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
         Spacer(Modifier.height(10.dp)); V6SourceCard("Live TV", accent, Modifier.fillMaxWidth()) { Text("Shared Catch-up: ${if (settings.player.preferCatchupSibling) "an" else "aus"}", color = V6Muted) }
         Spacer(Modifier.height(10.dp)); V6SourceCard("Darstellung", accent, Modifier.fillMaxWidth()) { Text("Theme: ${settings.ui.theme.label}", color = V6Text); Text("Glasstärke: ${settings.ui.glassIntensity}/10", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
