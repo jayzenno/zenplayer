@@ -28,26 +28,6 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Normalize V6 source before compile
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('app/src/main/java/com/zenplayer/tv/ZenPlayerShellV6.kt')
-          s = p.read_text()
-          start = s.find('store.importPlaylistFromUrl(url.trim())')
-          if start < 0:
-              raise SystemExit('V6 URL import call not found')
-          success = s.find('.onSuccess', start)
-          failure = s.find('.onFailure', success)
-          marker = 'status = it.message ?: "M3U konnte nicht geladen werden" }'
-          end = s.find(marker, failure)
-          if success < 0 or failure < 0 or end < 0:
-              raise SystemExit('V6 URL import callback chain not found')
-          end += len(marker)
-          replacement = 'runCatching { store.importPlaylistFromUrl(url.trim()) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" }'
-          p.write_text(s[:start] + replacement + s[end:])
-          PY
-
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
