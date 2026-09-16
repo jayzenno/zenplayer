@@ -27,11 +27,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             var exitDialog by remember { mutableStateOf(false) }
             var lastBack by remember { mutableLongStateOf(0L) }
-            val focusManager = LocalFocusManager.current
+            val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
             BackHandler {
-                // First Back moves spatial focus toward the main navigation rail.
-                // A second Back within 2 seconds is the explicit exit request.
                 val moved = focusManager.moveFocus(FocusDirection.Left)
                 if (moved) {
                     lastBack = 0L
