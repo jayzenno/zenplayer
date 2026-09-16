@@ -82,7 +82,7 @@ private fun TimeRail(start: Long, accent: Color) {
 private fun ProgrammeCard(programme: EpgProgramme, now: Long, accent: Color, selected: Boolean, onClick: () -> Unit) {
     val current = now >= programme.start && now < programme.end
     val duration = ((programme.end - programme.start) / 60000L).coerceAtLeast(1L)
-    val width = (duration * 3L).coerceIn(150L, 360L).dp
+    val width = (duration * 3L).coerceIn(150L, 360L).toInt().dp
     Box(Modifier.width(width).height(78.dp).background(if (selected) Color(0x44FFFFFF) else Color(0x1FFFFFFF), RoundedCornerShape(18.dp)).border(if (selected) 2.dp else 1.dp, if (selected) accent else Color.White.copy(.08f), RoundedCornerShape(18.dp)).focusable().clickable(onClick = onClick).padding(12.dp)) {
         Column {
             Text(programme.title, color = Color(0xFFF5F6FA), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
