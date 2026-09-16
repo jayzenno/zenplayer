@@ -41,6 +41,8 @@ data class UiSettings(
     val animations: Boolean = true,
     val reducedMotion: Boolean = false,
     val clock24h: Boolean = true,
+    val sidebarOrder: List<String> = listOf("home", "epg", "playlist", "search", "settings"),
+    val sidebarHidden: Set<String> = emptySet(),
 )
 
 data class EpgSettings(
@@ -80,13 +82,18 @@ class SettingsStore(context: Context) {
     fun updateRemote(value: RemoteSettings) { remote = value; saveRemote(value) }
     fun reset() { prefs.edit().clear().apply(); ui = UiSettings(); player = PlayerSettings(); epg = EpgSettings(); remote = RemoteSettings() }
 
-    private fun loadUi() = UiSettings(
-        theme = enum("theme", ZenTheme.AURORA), channelListStyle = enum("listStyle", ChannelListStyle.CINEMATIC),
-        glassIntensity = prefs.getInt("glassIntensity", 7).coerceIn(1, 10), uiScale = prefs.getInt("uiScale", 100).coerceIn(75, 125),
-        animatedBackdrop = enum("animatedBackdrop", AnimatedBackdrop.AURORA_FLOW), showLogos = prefs.getBoolean("showLogos", true),
-        showGroupHeaders = prefs.getBoolean("groupHeaders", true), animations = prefs.getBoolean("animations", true),
-        reducedMotion = prefs.getBoolean("reducedMotion", false), clock24h = prefs.getBoolean("clock24h", true)
-    )
+    private fun loadUi(): UiSettings {
+        val order = prefs.getString("sidebarOrder", null).orEmpty().split(',').filter { it.isNotBlank() }.ifEmpty { listOf("home", "epg", "playlist", "search", "settings") }
+        val hidden = prefs.getString("sidebarHidden", null).orEmpty().split(',').filter { it.isNotBlank() }.toSet()
+        return UiSettings(
+            theme = enum("theme", ZenTheme.AURORA), channelListStyle = enum("listStyle", ChannelListStyle.CINEMATIC),
+            glassIntensity = prefs.getInt("glassIntensity", 7).coerceIn(1, 10), uiScale = prefs.getInt("uiScale", 100).coerceIn(75, 125),
+            animatedBackdrop = enum("animatedBackdrop", AnimatedBackdrop.AURORA_FLOW), showLogos = prefs.getBoolean("showLogos", true),
+            showGroupHeaders = prefs.getBoolean("groupHeaders", true), animations = prefs.getBoolean("animations", true),
+            reducedMotion = prefs.getBoolean("reducedMotion", false), clock24h = prefs.getBoolean("clock24h", true),
+            sidebarOrder = order, sidebarHidden = hidden
+        )
+    }
     private fun loadPlayer() = PlayerSettings(
         engine = enum("playerEngine", PlaybackEngine.EXO), externalPlayerPackage = prefs.getString("externalPlayerPackage", null),
         bufferMode = enum("buffer", BufferMode.AUTO), startLiveImmediately = prefs.getBoolean("startLive", true), autoPlayNext = prefs.getBoolean("autoNext", true),
@@ -109,7 +116,8 @@ class SettingsStore(context: Context) {
 
     private fun saveUi(v: UiSettings) = prefs.edit().putString("theme", v.theme.name).putString("listStyle", v.channelListStyle.name).putInt("glassIntensity", v.glassIntensity.coerceIn(1, 10))
         .putInt("uiScale", v.uiScale.coerceIn(75, 125)).putString("animatedBackdrop", v.animatedBackdrop.name).putBoolean("showLogos", v.showLogos)
-        .putBoolean("groupHeaders", v.showGroupHeaders).putBoolean("animations", v.animations).putBoolean("reducedMotion", v.reducedMotion).putBoolean("clock24h", v.clock24h).apply()
+        .putBoolean("groupHeaders", v.showGroupHeaders).putBoolean("animations", v.animations).putBoolean("reducedMotion", v.reducedMotion).putBoolean("clock24h", v.clock24h)
+        .putString("sidebarOrder", v.sidebarOrder.joinToString(",")).putString("sidebarHidden", v.sidebarHidden.joinToString(",")).apply()
     private fun savePlayer(v: PlayerSettings) = prefs.edit().putString("playerEngine", v.engine.name).putString("externalPlayerPackage", v.externalPlayerPackage)
         .putString("buffer", v.bufferMode.name).putBoolean("startLive", v.startLiveImmediately).putBoolean("autoNext", v.autoPlayNext).putBoolean("rememberPosition", v.rememberPosition)
         .putBoolean("hardware", v.hardwareAcceleration).putBoolean("deinterlace", v.deinterlacing).putBoolean("audioNorm", v.audioNormalization).putBoolean("stats", v.showPlayerStats)
