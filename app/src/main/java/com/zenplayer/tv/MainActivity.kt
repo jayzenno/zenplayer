@@ -3,10 +3,17 @@ package com.zenplayer.tv
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.OnBackPressedDispatcher
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.android.awaitFrame
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,7 +30,23 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                val initialFocus = remember { FocusRequester() }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // A FocusRequester on a non-focusable parent resolves to the
+                        // first focusable descendant. This is the same Compose focus
+                        // rule used by Android's TV samples for deterministic entry.
+                        .focusRequester(initialFocus)
+                ) {
+                    ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                }
+
+                LaunchedEffect(initialFocus) {
+                    awaitFrame()
+                    initialFocus.requestFocus()
+                }
             }
         }
     }
