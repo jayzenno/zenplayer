@@ -22,9 +22,8 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV7(SettingsStore(this@MainActivity))
+                ZenPlayerShellV6(SettingsStore(this@MainActivity))
             }
         }
-        // CI trigger: V7 EPG/replay layer.
     }
 }
