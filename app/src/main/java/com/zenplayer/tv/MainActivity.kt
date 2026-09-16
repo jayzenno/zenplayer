@@ -25,9 +25,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -54,9 +52,11 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,12 +71,12 @@ private val TextSecondary = Color(0xFF9EA3B3)
 
 private fun glassFill(intensity: Int, selected: Boolean = false): Color {
     val level = intensity.coerceIn(1, 10)
-    val alpha = if (selected) (0.16f + level * 0.025f) else (0.045f + level * 0.015f)
-    return Color.White.copy(alpha = alpha.coerceIn(0.04f, 0.42f))
+    val alpha = if (selected) 0.13f + level * 0.022f else 0.035f + level * 0.014f
+    return Color.White.copy(alpha.coerceIn(0.035f, 0.35f))
 }
 
 private fun glassBorder(intensity: Int, focused: Boolean, accent: Color): Color =
-    if (focused) accent.copy(alpha = 0.95f) else Color.White.copy(alpha = (0.045f + intensity * 0.012f).coerceIn(0.05f, 0.18f))
+    if (focused) accent.copy(.95f) else Color.White.copy((.04f + intensity * .012f).coerceIn(.045f, .16f))
 
 @Composable
 fun ZenPlayerApp(settings: SettingsStore) {
@@ -93,15 +93,14 @@ fun ZenPlayerApp(settings: SettingsStore) {
         ZenTheme.FROST -> Color(0xFF153B3B)
         ZenTheme.AMBER -> Color(0xFF49301B)
     }
-    val firstFocus = remember { FocusRequester() }
     Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(glow, Background, Background), radius = 1200f))) {
         Row(Modifier.fillMaxSize().padding(26.dp)) {
             GlassNavigation(page, accent, settings.ui.glassIntensity) { page = it }
-            Spacer(Modifier.width(24.dp))
+            Spacer(Modifier.width(20.dp))
             when (page) {
                 "settings" -> SettingsScreen(settings, accent)
                 "epg" -> EpgGuide(accent)
-                else -> HomeContent(settings, accent, firstFocus)
+                else -> HomeContent(settings, accent)
             }
         }
     }
@@ -112,11 +111,11 @@ private fun GlassNavigation(page: String, accent: Color, intensity: Int, onNavig
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.requestFocus() }
     Column(
-        Modifier.width(88.dp).fillMaxHeight().clip(RoundedCornerShape(28.dp))
-            .background(glassFill(intensity)).border(1.dp, glassBorder(intensity, false, accent), RoundedCornerShape(28.dp))
-            .padding(vertical = 20.dp),
+        Modifier.width(82.dp).fillMaxHeight().clip(RoundedCornerShape(26.dp))
+            .background(glassFill(intensity)).border(1.dp, glassBorder(intensity, false, accent), RoundedCornerShape(26.dp))
+            .padding(vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         NavIcon(Icons.Default.Home, "Home", page == "home", accent, intensity, first) { onNavigate("home") }
         NavIcon(Icons.Default.LiveTv, "TV Guide", page == "epg", accent, intensity) { onNavigate("epg") }
@@ -129,75 +128,72 @@ private fun GlassNavigation(page: String, accent: Color, intensity: Int, onNavig
 @Composable
 private fun NavIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, accent: Color, intensity: Int, requester: FocusRequester? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val modifier = Modifier.width(62.dp).height(58.dp)
+    val modifier = Modifier.width(58.dp).height(54.dp)
         .then(if (requester != null) Modifier.focusRequester(requester) else Modifier)
-        .clip(RoundedCornerShape(19.dp)).background(glassFill(intensity, selected || focused))
-        .border(if (focused) 2.dp else 1.dp, glassBorder(intensity, focused, accent), RoundedCornerShape(19.dp))
-        .onFocusChanged { focused = it.isFocused }
-        .focusable()
-        .clickable(onClick = onClick)
+        .clip(RoundedCornerShape(17.dp)).background(glassFill(intensity, selected || focused))
+        .border(if (focused) 2.dp else 1.dp, glassBorder(intensity, focused, accent), RoundedCornerShape(17.dp))
+        .onFocusChanged { focused = it.isFocused }.focusable().clickable(onClick = onClick)
         .onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) {
-                onClick(); true
-            } else false
+            if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { onClick(); true } else false
         }
     Box(modifier, Alignment.Center) { Icon(icon, label, tint = if (selected || focused) TextPrimary else TextSecondary) }
 }
 
 @Composable
-private fun HomeContent(settings: SettingsStore, accent: Color, firstFocus: FocusRequester) {
+private fun HomeContent(settings: SettingsStore, accent: Color) {
     Column(Modifier.fillMaxSize()) {
         Text("ZENPLAYER", color = TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
         HeroCard(accent, settings.ui.glassIntensity)
-        Spacer(Modifier.height(22.dp))
-        Section("Live jetzt", listOf("Das Erste", "ZDF", "RTL", "ProSieben", "VOX"), accent, settings.ui.glassIntensity, firstFocus)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
+        Section("Live jetzt", listOf("Das Erste", "ZDF", "RTL", "ProSieben", "VOX"), accent, settings.ui.glassIntensity)
+        Spacer(Modifier.height(18.dp))
         Section("Für dich", listOf("ARD", "ZDFneo", "3sat", "arte", "ONE"), accent, settings.ui.glassIntensity)
     }
 }
 
 @Composable
 private fun HeroCard(accent: Color, intensity: Int) {
-    Box(Modifier.fillMaxWidth().height(260.dp).clip(RoundedCornerShape(30.dp))
-        .background(Brush.linearGradient(listOf(accent.copy(.28f), glassFill(intensity, true), Color.Black.copy(.42f))))
-        .border(1.dp, Color.White.copy(.14f), RoundedCornerShape(30.dp)).padding(30.dp)) {
+    Box(Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(28.dp))
+        .background(Brush.linearGradient(listOf(accent.copy(.24f), glassFill(intensity, true), Color.Black.copy(.38f))))
+        .border(1.dp, Color.White.copy(.12f), RoundedCornerShape(28.dp)).padding(26.dp)) {
         Column(Modifier.align(Alignment.BottomStart)) {
-            Text("LIVE · DAS ERSTE", color = Color.White.copy(.72f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp)); Text("Tagesschau", color = TextPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(5.dp)); Text("20:00 – 20:15  ·  Nachrichten", color = TextSecondary, fontSize = 15.sp)
+            Text("LIVE · DAS ERSTE", color = Color.White.copy(.72f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp)); Text("Tagesschau", color = TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp)); Text("20:00 – 20:15 · Nachrichten", color = TextSecondary, fontSize = 14.sp)
         }
     }
 }
 
 @Composable
-private fun Section(title: String, channels: List<String>, accent: Color, intensity: Int, firstFocus: FocusRequester? = null) {
-    Column { Text(title, color = TextPrimary, fontSize = 21.sp, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(12.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) { items(channels) { name -> ChannelCard(name, accent, intensity, if (name == channels.first()) firstFocus else null) } }
+private fun Section(title: String, channels: List<String>, accent: Color, intensity: Int) {
+    Column { Text(title, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(10.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) { items(channels) { ChannelCard(it, accent, intensity) } }
     }
 }
 
 @Composable
-private fun ChannelCard(name: String, accent: Color, intensity: Int, requester: FocusRequester? = null) {
+private fun ChannelCard(name: String, accent: Color, intensity: Int) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.055f else 1f, label = "focus")
-    val modifier = Modifier.scale(scale).width(190.dp).height(108.dp)
-        .then(if (requester != null) Modifier.focusRequester(requester) else Modifier)
-        .clip(RoundedCornerShape(22.dp)).background(glassFill(intensity, focused))
-        .border(1.5.dp, glassBorder(intensity, focused, accent), RoundedCornerShape(22.dp))
-        .onFocusChanged { focused = it.isFocused }.focusable()
-        .clickable { }
-        .onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { true } else false
+    val scale by animateFloatAsState(if (focused) 1.025f else 1f, label = "focus")
+    Box(Modifier.scale(scale).width(178.dp).height(100.dp).clip(RoundedCornerShape(20.dp))
+        .background(glassFill(intensity, focused)).border(if (focused) 2.dp else 1.dp, glassBorder(intensity, focused, accent), RoundedCornerShape(20.dp))
+        .onFocusChanged { focused = it.isFocused }.focusable().clickable { }
+        .padding(12.dp)) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(11.dp)).background(Color.White.copy(.045f)), Alignment.Center) {
+                Text(initials(name), color = if (focused) accent else TextSecondary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(5.dp))
+            Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
-        .padding(18.dp)
-    Box(modifier) { Column(Modifier.align(Alignment.BottomStart)) { Text(name, color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold); Text("LIVE", color = TextSecondary, fontSize = 11.sp) } }
+    }
 }
 
 @Composable
 private fun SettingsScreen(settings: SettingsStore, accent: Color) {
-    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Einstellungen", color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold); Text("ZenPlayer bis ins Detail anpassen", color = TextSecondary, fontSize = 14.sp) }; Icon(Icons.Default.Tune, null, tint = accent, modifier = Modifier.padding(12.dp)) } }
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Einstellungen", color = TextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold); Text("ZenPlayer bis ins Detail anpassen", color = TextSecondary, fontSize = 13.sp) }; Icon(Icons.Default.Tune, null, tint = accent, modifier = Modifier.padding(10.dp)) } }
         item { SettingsSection("Darstellung", "Look & Feel", settings.ui.glassIntensity, accent) {
             ThemePicker(settings, accent)
             ChoiceRow("Senderdarstellung", settings.ui.channelListStyle.label, ChannelListStyle.entries.map { it.label }, accent) { value -> settings.updateUi(settings.ui.copy(channelListStyle = ChannelListStyle.entries.first { it.label == value })) }
@@ -230,27 +226,44 @@ private fun SettingsScreen(settings: SettingsStore, accent: Color) {
             ToggleRow("Nummerntasten", "Optional für Fernbedienungen mit Ziffern", settings.remote.numericKeys, accent) { settings.updateRemote(settings.remote.copy(numericKeys = it)) }
             ToggleRow("Senderhistorie", "Schnell zum vorherigen Sender zurück", settings.remote.channelHistory, accent) { settings.updateRemote(settings.remote.copy(channelHistory = it)) }
         }}
-        item { Spacer(Modifier.height(24.dp)) }
+        item { Spacer(Modifier.height(20.dp)) }
     }
 }
 
 @Composable
 private fun SettingsSection(title: String, subtitle: String, intensity: Int, accent: Color, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(glassFill(intensity)).border(1.dp, glassBorder(intensity, false, accent), RoundedCornerShape(26.dp)).padding(22.dp)) {
-        Text(title, color = TextPrimary, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-        Text(subtitle, color = TextSecondary, fontSize = 13.sp)
-        Spacer(Modifier.height(14.dp)); content()
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(glassFill(intensity)).border(1.dp, glassBorder(intensity, false, accent), RoundedCornerShape(24.dp)).padding(20.dp)) {
+        Text(title, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        Spacer(Modifier.height(12.dp)); content()
     }
 }
 
 @Composable
 private fun IntensityRow(title: String, value: Int, accent: Color, onChange: (Int) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f)); Text("$value / 10", color = accent, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { (1..10).forEach { level ->
-            Box(Modifier.width(28.dp).height(28.dp).clip(RoundedCornerShape(8.dp)).background(if (level <= value) accent.copy(.75f) else Color.White.copy(.06f)).border(1.dp, if (level == value) accent else Color.Transparent, RoundedCornerShape(8.dp)).focusable().clickable { onChange(level) }, Alignment.Center) { Text(level.toString(), color = TextPrimary, fontSize = 10.sp) }
-        }}
+    Column(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("STUFE $value / 10", color = accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            (1..10).forEach { level ->
+                var focused by remember { mutableStateOf(false) }
+                val active = level == value
+                Box(Modifier.weight(1f).height(34.dp).clip(RoundedCornerShape(9.dp))
+                    .background(if (active) accent.copy(.30f) else if (focused) accent.copy(.15f) else Color.White.copy(.045f))
+                    .border(if (focused || active) 2.dp else 1.dp, if (focused || active) accent.copy(.9f) else Color.White.copy(.06f), RoundedCornerShape(9.dp))
+                    .onFocusChanged { focused = it.isFocused }.focusable().clickable { onChange(level) }
+                    .onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { onChange(level); true } else false
+                    }, Alignment.Center) {
+                    Text(level.toString(), color = if (active || focused) TextPrimary else TextSecondary, fontSize = 11.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium)
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text("← / → wählen · OK setzen", color = TextSecondary, fontSize = 10.sp)
     }
 }
 
@@ -262,9 +275,17 @@ private fun ThemePicker(settings: SettingsStore, accent: Color) {
 @Composable
 private fun ChoiceRow(title: String, value: String, options: List<String>, accent: Color, onChange: (String) -> Unit) {
     var index by remember(value) { mutableStateOf(options.indexOf(value).coerceAtLeast(0)) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(value, color = TextSecondary, fontSize = 12.sp) }
-            Box(Modifier.width(48.dp).height(42.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(.06f)).focusable().clickable { index = (index + 1) % options.size; onChange(options[index]) }.onKeyEvent { event -> if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { index = (index + 1) % options.size; onChange(options[index]); true } else false }, Alignment.Center) { Text("›", color = accent, fontSize = 25.sp) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 7.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium); Text(options[index], color = TextSecondary, fontSize = 11.sp) }
+            Box(Modifier.width(52.dp).height(40.dp).clip(RoundedCornerShape(13.dp)).background(Color.White.copy(.06f)).focusable().clickable { index = (index + 1) % options.size; onChange(options[index]) }.onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyUp) when (event.key) {
+                    Key.DirectionLeft -> { index = (index - 1 + options.size) % options.size; onChange(options[index]); true }
+                    Key.DirectionRight -> { index = (index + 1) % options.size; onChange(options[index]); true }
+                    Key.Enter, Key.NumPadEnter, Key.DirectionCenter -> { onChange(options[index]); true }
+                    else -> false
+                } else false
+            }, Alignment.Center) { Text("›", color = accent, fontSize = 24.sp) }
         }
     }
 }
@@ -272,8 +293,12 @@ private fun ChoiceRow(title: String, value: String, options: List<String>, accen
 @Composable
 private fun ToggleRow(title: String, subtitle: String, checked: Boolean, accent: Color, onChange: (Boolean) -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (focused) glassFill(10, true) else Color.Transparent).onFocusChanged { focused = it.isFocused }.focusable().clickable { onChange(!checked) }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 12.sp) }
-        Box(Modifier.width(48.dp).height(28.dp).clip(RoundedCornerShape(14.dp)).background(if (checked) accent.copy(.85f) else Color.White.copy(.08f)), Alignment.Center) { Text(if (checked) "ON" else "OFF", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(if (focused) glassFill(10, true) else Color.Transparent).onFocusChanged { focused = it.isFocused }.focusable().clickable { onChange(!checked) }.onKeyEvent { event ->
+        if (event.type == KeyEventType.KeyUp && (event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.DirectionCenter)) { onChange(!checked); true } else false
+    }.padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 11.sp) }
+        Text(if (checked) "AN" else "AUS", color = if (checked) accent else TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
+
+private fun initials(name: String): String = name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }
