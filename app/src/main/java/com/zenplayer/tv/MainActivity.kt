@@ -22,10 +22,9 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                // V4 introduced a focus regression on TV remotes. Keep the stable
-                // V3 shell as the runtime entry point until V4 navigation is fixed.
-                // V3 also retains the built-in demo mode for testing without a playlist.
-                ZenPlayerShellV3(SettingsStore(this@MainActivity))
+                // V5 is the active TV shell. It owns navigation, source forms,
+                // zap chrome and player presentation; V3 remains in the tree as a rollback reference.
+                ZenPlayerShellV5(SettingsStore(this@MainActivity))
             }
         }
     }
