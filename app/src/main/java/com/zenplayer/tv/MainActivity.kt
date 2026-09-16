@@ -82,7 +82,11 @@ fun ZenPlayerApp(settings: SettingsStore) {
         Row(Modifier.fillMaxSize().padding(26.dp)) {
             GlassNavigation(page, accent) { page = it }
             Spacer(Modifier.width(24.dp))
-            if (page == "settings") SettingsScreen(settings, accent) else HomeContent(settings, accent)
+            when (page) {
+                "settings" -> SettingsScreen(settings, accent)
+                "epg" -> EpgGuide(accent)
+                else -> HomeContent(settings, accent)
+            }
         }
     }
 }
@@ -93,7 +97,7 @@ private fun GlassNavigation(page: String, accent: Color, onNavigate: (String) ->
         .border(1.dp, Color.White.copy(.09f), RoundedCornerShape(26.dp)).padding(vertical = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         NavIcon(Icons.Default.Home, "Home", page == "home", accent) { onNavigate("home") }
-        NavIcon(Icons.Default.LiveTv, "Live", false, accent) { onNavigate("home") }
+        NavIcon(Icons.Default.LiveTv, "TV Guide", page == "epg", accent) { onNavigate("epg") }
         NavIcon(Icons.Default.Search, "Search", false, accent) { onNavigate("home") }
         Spacer(Modifier.weight(1f))
         NavIcon(Icons.Default.Settings, "Settings", page == "settings", accent) { onNavigate("settings") }
@@ -151,7 +155,7 @@ private fun ChannelCard(name: String, accent: Color) {
     Box(Modifier.scale(scale).width(190.dp).height(108.dp).clip(RoundedCornerShape(22.dp))
         .background(if (focused) GlassStrong else Glass)
         .border(1.5.dp, if (focused) accent.copy(.8f) else Color.White.copy(.08f), RoundedCornerShape(22.dp))
-        .onFocusChanged { focused = it.isFocused }.focusable().padding(18.dp)) {
+        .onFocusChanged { focused = it.isFocused }.focusable().clickable { }.padding(18.dp)) {
         Column(Modifier.align(Alignment.BottomStart)) { Text(name, color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold); Text("LIVE", color = TextSecondary, fontSize = 11.sp) }
     }
 }
@@ -159,12 +163,7 @@ private fun ChannelCard(name: String, accent: Color) {
 @Composable
 private fun SettingsScreen(settings: SettingsStore, accent: Color) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text("Einstellungen", color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold); Text("ZenPlayer bis ins Detail anpassen", color = TextSecondary, fontSize = 14.sp) }
-                Icon(Icons.Default.Tune, null, tint = accent, modifier = Modifier.padding(12.dp))
-            }
-        }
+        item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Einstellungen", color = TextPrimary, fontSize = 32.sp, fontWeight = FontWeight.Bold); Text("ZenPlayer bis ins Detail anpassen", color = TextSecondary, fontSize = 14.sp) }; Icon(Icons.Default.Tune, null, tint = accent, modifier = Modifier.padding(12.dp)) } }
         item { SettingsSection("Darstellung", "Look & Feel") {
             ThemePicker(settings, accent)
             ChoiceRow("Senderdarstellung", settings.ui.channelListStyle.label, ChannelListStyle.entries.map { it.label }) { value -> settings.updateUi(settings.ui.copy(channelListStyle = ChannelListStyle.entries.first { it.label == value })) }
@@ -251,9 +250,7 @@ private fun ChoiceRow(title: String, value: String, options: List<String>, onSel
     var index by remember(value) { mutableStateOf(options.indexOf(value).coerceAtLeast(0)) }
     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, color = TextPrimary, fontSize = 15.sp); Text(value, color = TextSecondary, fontSize = 12.sp) }
-        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(GlassStrong).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(14.dp)).focusable().clickable {
-            index = (index + 1) % options.size; onSelect(options[index])
-        }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("Ändern", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+        Box(Modifier.clip(RoundedCornerShape(14.dp)).background(GlassStrong).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(14.dp)).focusable().clickable { index = (index + 1) % options.size; onSelect(options[index]) }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("Ändern", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
     }
 }
 
