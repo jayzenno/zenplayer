@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -14,7 +15,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -26,23 +34,43 @@ import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 
-/** Playback surface. Navigation/control chrome is owned by the TV shell. */
+/** Playback surface. The TV shell owns the chrome; this surface keeps the remote focus alive. */
 @Composable
-fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Unit) {
+fun ZenPlayerScreen(
+    channel: Channel,
+    settings: SettingsStore,
+    onBack: () -> Unit,
+    onRemoteKey: (Key) -> Boolean = { false }
+) {
     BackHandler(onBack = onBack)
-    when (settings.player.engine) {
-        PlaybackEngine.EXO -> ExoPlayerView(channel, settings)
-        PlaybackEngine.VLC -> VlcPlayerView(channel, settings)
-        PlaybackEngine.EXTERNAL -> {
-            val context = LocalContext.current
-            LaunchedEffect(channel.streamUrl, settings.player.externalPlayerPackage) {
-                launchExternalPlayer(context, channel.streamUrl, settings.player.externalPlayerPackage)
-                onBack()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(channel.streamUrl) {
+        runCatching { focusRequester.requestFocus() }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
+                onRemoteKey(event.key)
             }
-            Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {}
+    ) {
+        when (settings.player.engine) {
+            PlaybackEngine.EXO -> ExoPlayerView(channel, settings)
+            PlaybackEngine.VLC -> VlcPlayerView(channel, settings)
+            PlaybackEngine.EXTERNAL -> {
+                val context = LocalContext.current
+                LaunchedEffect(channel.streamUrl, settings.player.externalPlayerPackage) {
+                    launchExternalPlayer(context, channel.streamUrl, settings.player.externalPlayerPackage)
+                    onBack()
+                }
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {}
+            }
         }
     }
 }
