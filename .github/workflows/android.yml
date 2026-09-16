@@ -29,7 +29,9 @@ jobs:
           gradle-version: '8.13'
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          sed -i 's/info\.activityInfo\.packageManager/LocalContext.current.packageManager/g' app/src/main/java/com/zenplayer/tv/ZenPlayerShell.kt
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
