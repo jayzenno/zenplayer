@@ -1,15 +1,20 @@
-package com.zenplayer.tv.data.m3u
+package com.zenplayer.tv
 
 import com.zenplayer.tv.domain.model.Channel
+import java.io.Reader
 
 /** Tolerant M3U/M3U8 parser for common IPTV variants. */
 object M3uParser {
-    fun parse(text: String): List<Channel> {
-        val lines = text.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n').lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+    fun parse(text: String): List<Channel> = parse(text.reader())
+
+    /** Streaming parser: keeps only the current line in memory instead of creating a second full playlist copy. */
+    fun parse(reader: Reader): List<Channel> {
         val result = ArrayList<Channel>()
         var pending: Attributes? = null
         var extGroup: String? = null
-        for (line in lines) {
+        reader.buffered().forEachLine { raw ->
+            val line = raw.trim().removePrefix("\uFEFF")
+            if (line.isEmpty()) return@forEachLine
             when {
                 line.startsWith("#EXTINF", true) -> pending = parseAttributes(line)
                 line.startsWith("#EXTGRP", true) -> extGroup = line.substringAfter(':', "").trim().ifBlank { null }
