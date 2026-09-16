@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -57,6 +59,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,6 +84,7 @@ private val V4Base = Color(0xFF05070D)
 fun ZenPlayerShellV4(settings: SettingsStore) {
     val context = LocalContext.current
     val store = remember { PlaylistStore(context) }
+    val focusManager = LocalFocusManager.current
     val accent = when (settings.ui.theme) {
         ZenTheme.AURORA -> Color(0xFF70E6FF)
         ZenTheme.OBSIDIAN -> Color(0xFFAAA8FF)
@@ -113,13 +118,34 @@ fun ZenPlayerShellV4(settings: SettingsStore) {
         ZenAnimatedBackdrop(settings.ui.theme, settings.ui.animatedBackdrop, !settings.ui.reducedMotion)
         when {
             sourceOpen -> V4Sources(store, accent) { sourceOpen = false }
-            playerIndex in store.channels.indices -> V4Player(store.channels, playerIndex, settings, accent) { playerIndex = -1 }
-            else -> Row(Modifier.fillMaxSize().padding(22.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            playerIndex in store.channels.indices -> V4Player(
+                channels = store.channels,
+                index = playerIndex,
+                settings = settings,
+                accent = accent,
+                onSwitch = { next -> playerIndex = next.coerceIn(0, store.channels.lastIndex) },
+                onClose = { playerIndex = -1 }
+            )
+            else -> Row(
+                Modifier.fillMaxSize().padding(22.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+                        if (event.key == Key.DirectionLeft && page != "epg") {
+                            val moved = focusManager.moveFocus(FocusDirection.Left)
+                            if (!moved) runCatching { requesters[ids.indexOf(page).coerceAtLeast(0)].requestFocus() }
+                            moved
+                        } else false
+                    },
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
                 V4Sidebar(page, ids, accent, requesters) { page = it; preview = null }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     when (page) {
                         "home" -> V4Home(store.channels, accent, settings.ui.glassIntensity) { playerIndex = store.channels.indexOf(it) }
-                        "epg" -> V4Epg(store, accent, preview) { channel, second -> if (second) { playerIndex = store.channels.indexOf(channel); preview = null } else preview = channel }
+                        "epg" -> V4Epg(store, accent, preview) { channel, second ->
+                            if (second) { playerIndex = store.channels.indexOf(channel); preview = null }
+                            else preview = channel
+                        }
                         "search" -> V4Search(store.channels, accent) { playerIndex = store.channels.indexOf(it) }
                         else -> V4Settings(accent) { sourceOpen = true }
                     }
@@ -140,7 +166,13 @@ fun ZenPlayerShellV4(settings: SettingsStore) {
 private fun V4Sidebar(page: String, ids: List<String>, accent: Color, requesters: List<FocusRequester>, onPage: (String) -> Unit) {
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val labels = listOf("Home", "EPG", "Suche", "Settings")
-    Column(Modifier.width(74.dp).fillMaxHeight().background(Color.White.copy(.045f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(.12f), RoundedCornerShape(24.dp)).padding(9.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(
+        Modifier.width(74.dp).fillMaxHeight().focusGroup()
+            .background(Color.White.copy(.045f), RoundedCornerShape(24.dp))
+            .border(1.dp, Color.White.copy(.12f), RoundedCornerShape(24.dp)).padding(9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
         Box(Modifier.width(54.dp).height(54.dp).background(accent.copy(.16f), RoundedCornerShape(17.dp)), Alignment.Center) { Text("Z", color = V4Text, fontSize = 24.sp, fontWeight = FontWeight.Black) }
         Spacer(Modifier.height(14.dp))
         ids.forEachIndexed { i, id ->
@@ -153,7 +185,11 @@ private fun V4Sidebar(page: String, ids: List<String>, accent: Color, requesters
 @Composable
 private fun V4NavButton(label: String, icon: ImageVector, selected: Boolean, accent: Color, requester: FocusRequester, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.width(54.dp).height(54.dp).focusRequester(requester).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused) accent.copy(.20f) else if (selected) accent.copy(.13f) else Color.Transparent, RoundedCornerShape(17.dp)).border(if (focused) 2.dp else 0.dp, accent.copy(.8f), RoundedCornerShape(17.dp)).tvAction(onClick), Alignment.Center) { Icon(icon, label, tint = if (focused || selected) V4Text else V4Muted) }
+    Box(Modifier.width(54.dp).height(54.dp).focusRequester(requester).focusable().onFocusChanged { focused = it.isFocused }
+        .background(if (focused) accent.copy(.20f) else if (selected) accent.copy(.13f) else Color.Transparent, RoundedCornerShape(17.dp))
+        .border(if (focused) 2.dp else 0.dp, accent.copy(.8f), RoundedCornerShape(17.dp)).tvAction(onClick), Alignment.Center) {
+        Icon(icon, label, tint = if (focused || selected) V4Text else V4Muted)
+    }
 }
 
 @Composable
@@ -166,24 +202,33 @@ private fun V4Home(channels: List<Channel>, accent: Color, glass: Int, onPlay: (
     }
 }
 
-@Composable private fun V4Header(title: String, subtitle: String) { Text(title, color = V4Text, fontSize = 34.sp, fontWeight = FontWeight.Black); Text(subtitle, color = V4Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 3.dp)) }
+@Composable private fun V4Header(title: String, subtitle: String) {
+    Text(title, color = V4Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+    Text(subtitle, color = V4Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 3.dp))
+}
 
 @Composable
 private fun V4Channel(channel: Channel, accent: Color, onPlay: (Channel) -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().height(74.dp).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused) accent.copy(.12f) else Color.White.copy(.045f), RoundedCornerShape(17.dp)).border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(17.dp)).tvAction { onPlay(channel) }.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(74.dp).focusable().onFocusChanged { focused = it.isFocused }
+        .background(if (focused) accent.copy(.12f) else Color.White.copy(.045f), RoundedCornerShape(17.dp))
+        .border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(17.dp)).tvAction { onPlay(channel) }
+        .padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         V4Logo(channel, accent)
         Column(Modifier.weight(1f).padding(start = 14.dp)) { Text(channel.name, color = V4Text, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text(channel.group ?: "Live TV", color = V4Muted, fontSize = 11.sp) }
         Text(channel.resolutionHint ?: "LIVE", color = if (focused) accent else V4Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
-@Composable private fun V4Logo(channel: Channel, accent: Color) { if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.width(48.dp).height(48.dp), contentScale = ContentScale.Fit) else Box(Modifier.width(48.dp).height(48.dp).background(accent.copy(.12f), RoundedCornerShape(13.dp)), Alignment.Center) { Text(v4Initials(channel.name), color = accent, fontWeight = FontWeight.Bold) } }
+@Composable private fun V4Logo(channel: Channel, accent: Color) {
+    if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.width(48.dp).height(48.dp), contentScale = ContentScale.Fit)
+    else Box(Modifier.width(48.dp).height(48.dp).background(accent.copy(.12f), RoundedCornerShape(13.dp)), Alignment.Center) { Text(v4Initials(channel.name), color = accent, fontWeight = FontWeight.Bold) }
+}
 
 @Composable
 private fun V4Epg(store: PlaylistStore, accent: Color, preview: Channel?, onProgram: (Channel, Boolean) -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        V4Header("EPG", "← → Programme · 1× OK Vorschau · 2× OK Fullscreen")
+        V4Header("EPG", "← → Timeline · 1× OK Vorschau · 2× OK Fullscreen")
         Spacer(Modifier.height(10.dp))
         if (preview != null) { V4Preview(preview, accent); Spacer(Modifier.height(9.dp)) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp), contentPadding = PaddingValues(bottom = 28.dp)) {
@@ -199,10 +244,12 @@ private fun V4Epg(store: PlaylistStore, accent: Color, preview: Channel?, onProg
 private fun V4EpgRow(channel: Channel, programmes: List<EpgProgramme>, accent: Color, selected: Boolean, onProgram: (Channel, Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().height(82.dp).background(Color.White.copy(.038f), RoundedCornerShape(15.dp)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(118.dp), horizontalAlignment = Alignment.CenterHorizontally) { V4Logo(channel, accent); Text(channel.name, color = V4Text, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 6.dp)) {
+        LazyRow(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 6.dp)) {
             items(programmes) { p ->
                 var focused by remember { mutableStateOf(false) }
-                Column(Modifier.width(136.dp).height(62.dp).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused || selected) accent.copy(.10f) else Color.White.copy(.03f), RoundedCornerShape(11.dp)).border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(11.dp)).tvAction { onProgram(channel, selected) }.padding(8.dp)) {
+                Column(Modifier.width(136.dp).height(62.dp).focusable().onFocusChanged { focused = it.isFocused }
+                    .background(if (focused || selected) accent.copy(.10f) else Color.White.copy(.03f), RoundedCornerShape(11.dp))
+                    .border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(11.dp)).tvAction { onProgram(channel, selected) }.padding(8.dp)) {
                     Text(formatTime(p.start), color = if (focused) accent else V4Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     Text(p.title, color = V4Text, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                 }
@@ -226,11 +273,14 @@ private fun V4Preview(channel: Channel, accent: Color) {
 private fun V4Search(channels: List<Channel>, accent: Color, onPlay: (Channel) -> Unit) {
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
     val filtered = channels.filter { it.name.contains(query, true) || it.group.orEmpty().contains(query, true) }
     Column(Modifier.fillMaxSize()) {
         V4Header("Suche", "Fokus ≠ Eingabe · erst OK öffnet die Tastatur")
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(query, { query = it }, label = { Text("Sender suchen") }, readOnly = !editing, singleLine = true, colors = V4FieldColors(accent), modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter)) { editing = true; true } else false })
+        OutlinedTextField(query, { query = it }, label = { Text("Sender suchen") }, readOnly = !editing, singleLine = true, colors = V4FieldColors(accent), modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { e ->
+            if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter)) { editing = true; keyboard?.show(); true } else false
+        })
         Spacer(Modifier.height(9.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V4Channel(it, accent, onPlay) } }
     }
@@ -249,10 +299,10 @@ private fun V4Sources(store: PlaylistStore, accent: Color, onDone: () -> Unit) {
     var passEdit by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) scope.launch { status = "Playlist wird eingelesen…"; runCatching { store.importPlaylistFromUri(uri) }.onSuccess { onDone() }.onFailure { status = it.message ?: "M3U konnte nicht gelesen werden" } } }
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().focusGroup()) {
         V4Header("Quelle hinzufügen", "D-Pad bewegt · Hover öffnet nichts · OK aktiviert Eingabe")
         Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+        Row(Modifier.fillMaxWidth().focusGroup(), horizontalArrangement = Arrangement.spacedBy(15.dp)) {
             V4SourceCard("M3U / M3U8", accent, Modifier.weight(1f)) {
                 V4Action("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
                 V4GatedField(url, { url = it }, "M3U / M3U8 URL", urlEdit, { urlEdit = true }, accent)
@@ -271,7 +321,10 @@ private fun V4Sources(store: PlaylistStore, accent: Color, onDone: () -> Unit) {
 
 @Composable
 private fun V4GatedField(value: String, onValue: (String) -> Unit, label: String, editing: Boolean, onEdit: () -> Unit, accent: Color) {
-    OutlinedTextField(value, onValue, label = { Text(label) }, readOnly = !editing, singleLine = true, colors = V4FieldColors(accent), modifier = Modifier.fillMaxWidth().padding(top = 7.dp).onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter)) { onEdit(); true } else false })
+    val keyboard = LocalSoftwareKeyboardController.current
+    OutlinedTextField(value, onValue, label = { Text(label) }, readOnly = !editing, singleLine = true, colors = V4FieldColors(accent), modifier = Modifier.fillMaxWidth().padding(top = 7.dp).onPreviewKeyEvent { e ->
+        if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter)) { onEdit(); keyboard?.show(); true } else false
+    })
 }
 
 @Composable
@@ -282,33 +335,58 @@ private fun V4SourceCard(title: String, accent: Color, modifier: Modifier, conte
 @Composable
 private fun V4Action(title: String, accent: Color, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxWidth().height(42.dp).padding(top = 7.dp).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused) accent.copy(.16f) else Color.White.copy(.04f), RoundedCornerShape(11.dp)).border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(11.dp)).tvAction(onClick), Alignment.CenterStart) { Text(title, color = V4Text, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 11.dp)) }
+    Box(Modifier.fillMaxWidth().height(42.dp).padding(top = 7.dp).focusable().onFocusChanged { focused = it.isFocused }
+        .background(if (focused) accent.copy(.16f) else Color.White.copy(.04f), RoundedCornerShape(11.dp))
+        .border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(11.dp)).tvAction(onClick), Alignment.CenterStart) {
+        Text(title, color = V4Text, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 11.dp))
+    }
 }
 
 @Composable
 private fun V4ActionCard(title: String, subtitle: String, accent: Color, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Column(Modifier.width(420.dp).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused) accent.copy(.13f) else Color.White.copy(.045f), RoundedCornerShape(20.dp)).border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(20.dp)).tvAction(onClick).padding(20.dp)) { Text(title, color = V4Text, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(subtitle, color = V4Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp)) }
+    Column(Modifier.width(420.dp).focusable().onFocusChanged { focused = it.isFocused }
+        .background(if (focused) accent.copy(.13f) else Color.White.copy(.045f), RoundedCornerShape(20.dp))
+        .border(if (focused) 1.dp else 0.dp, accent.copy(.7f), RoundedCornerShape(20.dp)).tvAction(onClick).padding(20.dp)) {
+        Text(title, color = V4Text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = V4Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 5.dp))
+    }
 }
 
-@Composable private fun V4Settings(accent: Color, onSources: () -> Unit) { Column(Modifier.fillMaxSize()) { V4Header("Einstellungen", "D-Pad · OK"); Spacer(Modifier.height(14.dp)); V4ActionCard("Quellen", "M3U / M3U8 / Xtream Codes", accent, onSources); Spacer(Modifier.height(10.dp)); V4ActionCard("Seitenleiste", "Reihenfolge und Sichtbarkeit", accent) {}; Spacer(Modifier.height(10.dp)); V4ActionCard("Darstellung", "Theme · Glas · Animationen", accent) {} } }
+@Composable
+private fun V4Settings(accent: Color, onSources: () -> Unit) {
+    Column(Modifier.fillMaxSize().focusGroup()) {
+        V4Header("Einstellungen", "D-Pad · OK")
+        Spacer(Modifier.height(14.dp))
+        V4ActionCard("Quellen", "M3U / M3U8 / Xtream Codes", accent, onSources)
+        Spacer(Modifier.height(10.dp))
+        V4ActionCard("Seitenleiste", "Reihenfolge und Sichtbarkeit", accent) {}
+        Spacer(Modifier.height(10.dp))
+        V4ActionCard("Darstellung", "Theme · Glas · Animationen", accent) {}
+    }
+}
 
 @Composable
-private fun V4Player(channels: List<Channel>, index: Int, settings: SettingsStore, accent: Color, onClose: () -> Unit) {
+private fun V4Player(channels: List<Channel>, index: Int, settings: SettingsStore, accent: Color, onSwitch: (Int) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     val channel = channels[index]
     val player = remember(channel.streamUrl) { ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(Uri.parse(channel.streamUrl))); prepare(); playWhenReady = settings.player.startLiveImmediately } }
     var overlay by remember { mutableStateOf(false) }
-    val requester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { requester.requestFocus() } }
+    val rootRequester = remember { FocusRequester() }
+    val firstButtonRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { rootRequester.requestFocus() } }
+    LaunchedEffect(overlay) { if (overlay) runCatching { firstButtonRequester.requestFocus() } else runCatching { rootRequester.requestFocus() } }
     androidx.compose.runtime.DisposableEffect(player) { onDispose { player.release() } }
     BackHandler { if (overlay) overlay = false else onClose() }
-    Box(Modifier.fillMaxSize().background(Color.Black).focusRequester(requester).focusable().onPreviewKeyEvent { e ->
+    Box(Modifier.fillMaxSize().background(Color.Black).focusRequester(rootRequester).focusable().onPreviewKeyEvent { e ->
         if (e.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+        if (overlay) return@onPreviewKeyEvent false
         when (e.key) {
-            Key.DirectionCenter -> { overlay = !overlay; true }
+            Key.DirectionCenter -> { overlay = true; true }
             Key.DirectionLeft -> { player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L)); overlay = true; true }
             Key.DirectionRight -> { player.seekTo(player.currentPosition + 10_000L); overlay = true; true }
+            Key.DirectionUp -> { if (channels.isNotEmpty()) { onSwitch((index - 1 + channels.size) % channels.size); true } else false }
+            Key.DirectionDown -> { if (channels.isNotEmpty()) { onSwitch((index + 1) % channels.size); true } else false }
             Key.MediaPlayPause -> { if (player.isPlaying) player.pause() else player.play(); overlay = true; true }
             Key.MediaPlay -> { player.play(); overlay = true; true }
             Key.MediaPause -> { player.pause(); overlay = true; true }
@@ -316,19 +394,35 @@ private fun V4Player(channels: List<Channel>, index: Int, settings: SettingsStor
         }
     }) {
         AndroidView(factory = { ctx -> PlayerView(ctx).apply { useController = false; isFocusable = false; isFocusableInTouchMode = false; this.player = player } }, modifier = Modifier.fillMaxSize())
-        if (overlay) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(.76f)).padding(17.dp)) {
-            Text(channel.name, color = V4Text, fontSize = 19.sp, fontWeight = FontWeight.Black)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 9.dp)) {
-                V4PlayerButton(if (player.isPlaying) "Pause" else "Play", accent) { if (player.isPlaying) player.pause() else player.play() }
-                V4PlayerButton("−10s", accent) { player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L)) }
-                V4PlayerButton("+10s", accent) { player.seekTo(player.currentPosition + 10_000L) }
+        if (overlay) Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(.76f)).padding(17.dp).focusGroup()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                V4Logo(channel, accent)
+                Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                    Text(channel.name, color = V4Text, fontSize = 19.sp, fontWeight = FontWeight.Black)
+                    Text("LIVE · ↑/↓ Sender · Back Overlay schließen", color = V4Muted, fontSize = 10.sp)
+                }
             }
-            Text("OK Overlay · ←/→ 10s · Play/Pause · Back schließt Overlay", color = V4Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 7.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 9.dp)) {
+                V4PlayerButton(if (player.isPlaying) "Pause" else "Play", accent, firstButtonRequester) { if (player.isPlaying) player.pause() else player.play() }
+                V4PlayerButton("−10s", accent, null) { player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L)) }
+                V4PlayerButton("+10s", accent, null) { player.seekTo(player.currentPosition + 10_000L) }
+            }
         }
     }
 }
 
-@Composable private fun V4PlayerButton(title: String, accent: Color, onClick: () -> Unit) { var focused by remember { mutableStateOf(false) }; Box(Modifier.width(105.dp).height(40.dp).focusable().onFocusChanged { focused = it.isFocused }.background(if (focused) accent.copy(.18f) else Color.White.copy(.06f), RoundedCornerShape(10.dp)).border(if (focused) 1.dp else 0.dp, accent.copy(.8f), RoundedCornerShape(10.dp)).tvAction(onClick), Alignment.Center) { Text(title, color = V4Text, fontSize = 11.sp, fontWeight = FontWeight.Bold) } }
+@Composable
+private fun V4PlayerButton(title: String, accent: Color, requester: FocusRequester?, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(Modifier.width(105.dp).height(40.dp).focusRequesterCompat(requester).focusable().onFocusChanged { focused = it.isFocused }
+        .background(if (focused) accent.copy(.18f) else Color.White.copy(.06f), RoundedCornerShape(10.dp))
+        .border(if (focused) 1.dp else 0.dp, accent.copy(.8f), RoundedCornerShape(10.dp)).tvAction(onClick), Alignment.Center) {
+        Text(title, color = V4Text, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun Modifier.focusRequesterCompat(requester: FocusRequester?): Modifier = if (requester != null) focusRequester(requester) else this
+
 @Composable private fun V4FieldColors(accent: Color) = OutlinedTextFieldDefaults.colors(focusedTextColor = V4Text, unfocusedTextColor = V4Text, focusedLabelColor = accent, unfocusedLabelColor = V4Muted, cursorColor = accent, focusedBorderColor = accent, unfocusedBorderColor = Color.White.copy(.2f))
 private fun formatTime(date: Date): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
 private fun v4Initials(name: String): String = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "TV" }
