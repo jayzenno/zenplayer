@@ -28,10 +28,20 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Build debug APK
+      - name: Prepare ZenPlayer TV shell
         run: |
-          sed -i 's/info\.activityInfo\.packageManager/LocalContext.current.packageManager/g' app/src/main/java/com/zenplayer/tv/ZenPlayerShell.kt
-          gradle assembleDebug --stacktrace
+          python3 - <<'PY2'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/zenplayer/tv/ZenPlayerShell.kt')
+          s = p.read_text()
+          s = s.replace('info.activityInfo.packageManager', 'LocalContext.current.packageManager')
+          s = s.replace('Sidebar(page, accent) { page = it }', 'ZenSidebar(page, accent, settings) { page = it }')
+          s = s.replace('0 -> HomeScreen(store, accent, refresh) { playing = it }', '0 -> ZenHomeScreen(store, accent, refresh, { playing = it }) { page = 2 }')
+          p.write_text(s)
+          PY2
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
