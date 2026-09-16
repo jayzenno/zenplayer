@@ -1,5 +1,6 @@
 package com.zenplayer.tv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -11,16 +12,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -31,14 +36,25 @@ import androidx.compose.ui.unit.sp
 fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
     val names = linkedMapOf("home" to "Home", "epg" to "EPG", "search" to "Suche", "settings" to "Settings")
     val order = settings.ui.sidebarOrder.filter { it in names.keys }.ifEmpty { names.keys.toList() }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(order) { runCatching { first.requestFocus() } }
+    // Back from this editor returns spatial focus toward the main sidebar instead of closing the app.
+    BackHandler { /* let spatial focus return to the navigation rail */ }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Seitenleiste", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Text("Reihenfolge und Sichtbarkeit der Navigation. Playlist bleibt bewusst unter Einstellungen.", color = Color(0xFF9EA6B8), fontSize = 11.sp)
+        Text("↑/↓ Sender verschieben · OK Sichtbarkeit · ← zurück zur Hauptnavigation", color = Color(0xFF9EA6B8), fontSize = 11.sp)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            items(order) { id ->
-                SidebarEditRow(id, names.getValue(id), id in settings.ui.sidebarHidden, accent,
-                    canMoveUp = order.indexOf(id) > 0,
-                    canMoveDown = order.indexOf(id) < order.lastIndex,
+            itemsIndexed(order, key = { _, id -> id }) { index, id ->
+                SidebarEditRow(
+                    id = id,
+                    title = names.getValue(id),
+                    hidden = id in settings.ui.sidebarHidden,
+                    accent = accent,
+                    requester = if (index == 0) first else null,
+                    position = index + 1,
+                    total = order.size,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < order.lastIndex,
                     onToggle = {
                         if (id == "settings") return@SidebarEditRow
                         val hidden = settings.ui.sidebarHidden.toMutableSet()
@@ -54,7 +70,8 @@ fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
                             mutable.add(to, value)
                             settings.updateUi(settings.ui.copy(sidebarOrder = mutable))
                         }
-                    })
+                    }
+                )
             }
         }
         FocusButton("Standardreihenfolge", accent) {
@@ -64,9 +81,34 @@ fun SidebarCustomizer(settings: SettingsStore, accent: Color) {
 }
 
 @Composable
-private fun SidebarEditRow(id: String, title: String, hidden: Boolean, accent: Color, canMoveUp: Boolean, canMoveDown: Boolean, onToggle: () -> Unit, onMove: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().height(48.dp).background(Color.White.copy(.05f), RoundedCornerShape(14.dp)).border(1.dp, Color.White.copy(.09f), RoundedCornerShape(14.dp)).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = if (hidden) Color(0xFF666D7C) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+private fun SidebarEditRow(
+    id: String,
+    title: String,
+    hidden: Boolean,
+    accent: Color,
+    requester: FocusRequester?,
+    position: Int,
+    total: Int,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onToggle: () -> Unit,
+    onMove: (Int) -> Unit
+) {
+    var rowFocused by remember { mutableStateOf(false) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .then(if (requester != null) Modifier.focusRequester(requester) else Modifier)
+            .onFocusChanged { rowFocused = it.hasFocus }
+            .background(if (rowFocused) accent.copy(.12f) else Color.White.copy(.05f), RoundedCornerShape(14.dp))
+            .border(if (rowFocused) 2.dp else 1.dp, if (rowFocused) accent.copy(.85f) else Color.White.copy(.09f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$position", color = if (rowFocused) accent else Color(0xFF70788A), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = if (hidden) Color(0xFF666D7C) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).padding(start = 10.dp))
+        Text(if (hidden) "VERSTECKT" else "AKTIV", color = if (hidden) Color(0xFF666D7C) else accent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
         FocusButton("↑", accent, canMoveUp) { onMove(-1) }
         FocusButton("↓", accent, canMoveDown) { onMove(1) }
         if (id != "settings") FocusButton(if (hidden) "AN" else "AUS", accent) { onToggle() }
@@ -76,9 +118,17 @@ private fun SidebarEditRow(id: String, title: String, hidden: Boolean, accent: C
 @Composable
 private fun FocusButton(label: String, accent: Color, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.padding(start = 6.dp).focusable(enabled).onFocusChanged { focused = it.isFocused }.background(if (focused && enabled) accent.copy(.18f) else Color.Transparent, RoundedCornerShape(9.dp)).border(if (focused && enabled) 2.dp else 1.dp, if (focused && enabled) accent else Color.White.copy(.07f), RoundedCornerShape(9.dp)).tvAction(enabled, onClick).padding(horizontal = 9.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
-        Text(label, color = if (enabled) Color.White else Color(0xFF4F5562), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-    }
+    Box(
+        Modifier
+            .padding(start = 6.dp)
+            .focusable(enabled)
+            .onFocusChanged { focused = it.isFocused }
+            .background(if (focused && enabled) accent.copy(.18f) else Color.Transparent, RoundedCornerShape(9.dp))
+            .border(if (focused && enabled) 2.dp else 1.dp, if (focused && enabled) accent else Color.White.copy(.07f), RoundedCornerShape(9.dp))
+            .tvAction(enabled, onClick)
+            .padding(horizontal = 9.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) { Text(label, color = if (enabled) Color.White else Color(0xFF4F5562), fontSize = 9.sp, fontWeight = FontWeight.Bold) }
 }
 
 private fun Modifier.tvAction(enabled: Boolean, action: () -> Unit): Modifier = this.then(if (enabled) Modifier.tvAction(action) else Modifier)
