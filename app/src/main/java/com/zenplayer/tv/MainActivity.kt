@@ -22,9 +22,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenTvFocusBootstrap {
-                    ZenPlayerShellV6(SettingsStore(this@MainActivity))
-                }
+                ZenPlayerShellV6(SettingsStore(this@MainActivity))
             }
         }
     }
