@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -40,20 +39,21 @@ import org.videolan.libvlc.util.VLCVideoLayout
 fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     when (settings.player.engine) {
-        PlaybackEngine.EXO -> ExoPlayerView(channel, settings, onBack)
-        PlaybackEngine.VLC -> VlcPlayerView(channel, settings, onBack)
+        PlaybackEngine.EXO -> ExoPlayerView(channel, settings)
+        PlaybackEngine.VLC -> VlcPlayerView(channel, settings)
         PlaybackEngine.EXTERNAL -> {
+            val context = LocalContext.current
             LaunchedEffect(channel.streamUrl, settings.player.externalPlayerPackage) {
-                launchExternalPlayer(LocalContext.current, channel.streamUrl, settings.player.externalPlayerPackage)
+                launchExternalPlayer(context, channel.streamUrl, settings.player.externalPlayerPackage)
                 onBack()
             }
-            PlayerLaunchFallback(channel, settings.player.externalPlayerPackage)
+            PlayerLaunchFallback()
         }
     }
 }
 
 @Composable
-private fun ExoPlayerView(channel: Channel, settings: SettingsStore, onBack: () -> Unit) {
+private fun ExoPlayerView(channel: Channel, settings: SettingsStore) {
     val context = LocalContext.current
     val player = remember(channel.streamUrl) {
         ExoPlayer.Builder(context).build().apply {
@@ -64,16 +64,13 @@ private fun ExoPlayerView(channel: Channel, settings: SettingsStore, onBack: () 
     }
     DisposableEffect(player) { onDispose { player.release() } }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(
-            factory = { PlayerView(it).apply { useController = true; this.player = player; requestFocus() } },
-            modifier = Modifier.fillMaxSize()
-        )
+        AndroidView(factory = { PlayerView(it).apply { useController = true; this.player = player; requestFocus() } }, modifier = Modifier.fillMaxSize())
         PlayerTitle(channel, "ExoPlayer", Modifier.align(Alignment.TopStart))
     }
 }
 
 @Composable
-private fun VlcPlayerView(channel: Channel, settings: SettingsStore, onBack: () -> Unit) {
+private fun VlcPlayerView(channel: Channel, settings: SettingsStore) {
     val context = LocalContext.current
     val libVlc = remember { LibVLC(context, arrayListOf("--audio-time-stretch", "--network-caching=${networkCaching(settings)}")) }
     val mediaPlayer = remember(libVlc) { MediaPlayer(libVlc) }
@@ -122,10 +119,8 @@ private fun PlayerTitle(channel: Channel, engine: String, modifier: Modifier) {
 }
 
 @Composable
-private fun PlayerLaunchFallback(channel: Channel, selectedPackage: String?) {
-    Box(Modifier.fillMaxSize().background(Color.Black).focusable(), Alignment.Center) {
-        Text("Starte externen Player…", color = Color.White, fontSize = 20.sp)
-    }
+private fun PlayerLaunchFallback() {
+    Box(Modifier.fillMaxSize().background(Color.Black).focusable(), Alignment.Center) { Text("Starte externen Player…", color = Color.White, fontSize = 20.sp) }
 }
 
 fun launchExternalPlayer(context: Context, url: String, packageName: String?): Boolean {
