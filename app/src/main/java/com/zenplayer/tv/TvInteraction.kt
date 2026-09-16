@@ -1,12 +1,12 @@
 package com.zenplayer.tv
 
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.focus.focusable
 
 /** Remote-first activation: one OK/Enter key-up produces exactly one action. */
 fun Modifier.tvAction(onAction: () -> Unit): Modifier =
