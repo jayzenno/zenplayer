@@ -1,9 +1,10 @@
 package com.zenplayer.tv
 
 import android.os.Bundle
+import android.os.SystemClock
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,9 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.LocalFocusManager
 import androidx.compose.ui.graphics.Color
-import android.os.SystemClock
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ZenLogger.init(this)
@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity() {
             val focusManager = LocalFocusManager.current
 
             BackHandler {
-                // First Back moves spatial focus back toward the main navigation rail.
+                // First Back moves spatial focus toward the main navigation rail.
                 // A second Back within 2 seconds is the explicit exit request.
                 val moved = focusManager.moveFocus(FocusDirection.Left)
                 if (moved) {
