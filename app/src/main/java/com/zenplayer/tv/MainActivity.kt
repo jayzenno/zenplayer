@@ -22,11 +22,9 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                // Focus ownership belongs to the TV shell. Do not attach a
-                // FocusRequester to a non-focusable wrapper and expect it to
-                // resolve to a descendant; Android TV focus is established by
-                // the actual focusable targets in ZenPlayerShellV6.
-                ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                ZenTvFocusBootstrap {
+                    ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                }
             }
         }
     }
