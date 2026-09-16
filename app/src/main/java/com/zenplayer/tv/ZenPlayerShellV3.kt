@@ -1,5 +1,6 @@
 package com.zenplayer.tv
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,10 +32,13 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,7 +93,20 @@ fun ZenPlayerShellV3(settings: SettingsStore) {
     var demo by remember { mutableStateOf(false) }
     var playerIndex by remember { mutableIntStateOf(-1) }
     var sourceOpen by remember { mutableStateOf(false) }
+    var exitDialog by remember { mutableStateOf(false) }
     val channels = if (demo) DemoData.channels() else store.channels
+
+    // Back is navigation first, app-exit second. Only a second Back from Home
+    // opens the explicit exit confirmation; it must never silently close the app.
+    BackHandler {
+        when {
+            exitDialog -> exitDialog = false
+            sourceOpen -> sourceOpen = false
+            playerIndex >= 0 -> playerIndex = -1
+            page != "home" -> page = "home"
+            else -> exitDialog = true
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(V3Base)) {
         ZenAnimatedBackdrop(ui.theme, ui.animatedBackdrop, !ui.reducedMotion)
@@ -112,6 +129,23 @@ fun ZenPlayerShellV3(settings: SettingsStore) {
                 }
             }
         }
+    }
+
+    if (exitDialog) {
+        AlertDialog(
+            onDismissRequest = { exitDialog = false },
+            title = { Text("ZenPlayer schließen?", color = V3Text) },
+            text = { Text("Möchtest du die App wirklich beenden?", color = V3Muted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    exitDialog = false
+                    (context as? Activity)?.finish()
+                }) { Text("Beenden", color = accent) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { exitDialog = false }) { Text("Abbrechen", color = V3Text) }
+            }
+        )
     }
 }
 
@@ -230,7 +264,8 @@ private fun V3Epg(store: PlaylistStore, demo: Boolean, glass: Int, accent: Color
 private fun V3EpgRow(channel: Channel, programmes: List<EpgProgramme>, glass: Int, accent: Color, onPlay: (Channel) -> Unit) { Row(Modifier.fillMaxWidth().height(92.dp).background(Color.White.copy(glassAlpha(glass, .055f)), RoundedCornerShape(17.dp)).border(1.dp, Color.White.copy(.08f), RoundedCornerShape(17.dp)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.width(142.dp).fillMaxHeight(), contentAlignment = Alignment.CenterStart) { Row(verticalAlignment = Alignment.CenterVertically) { if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.width(42.dp).height(42.dp), contentScale = ContentScale.Fit) else Box(Modifier.width(42.dp).height(42.dp).background(accent.copy(.10f), RoundedCornerShape(11.dp)), Alignment.Center) { Text(initials3(channel.name), color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold) }; Text(channel.name, color = V3Text, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 2, modifier = Modifier.padding(start = 9.dp).width(82.dp)) } }; LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { items(programmes) { p -> var f by remember(p.id) { mutableStateOf(false) }; val now = System.currentTimeMillis(); val live = now in p.start..p.end; Column(Modifier.width(132.dp).height(72.dp).onFocusChanged { f = it.isFocused }.focusable().background(if (f) accent.copy(.13f) else Color.Black.copy(.13f), RoundedCornerShape(12.dp)).border(if (f) 1.dp else 0.dp, if (f) accent.copy(.85f) else Color.Transparent, RoundedCornerShape(12.dp)).tvAction { onPlay(channel) }.padding(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(p.start)), color = if (live) accent else V3Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold); if (live) Text("  LIVE", color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold) }; Text(p.title, color = V3Text, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, modifier = Modifier.padding(top = 4.dp)); if (p.isCatchupAvailable) Text("REPLAY", color = accent, fontSize = 7.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp)) } } } } }
 
 @Composable
-private fun V3Search(store: PlaylistStore, demo: Boolean, glass: Int, accent: Color, onPlay: (Channel) -> Unit) { var q by remember { mutableStateOf("") }; val channels = if (demo) DemoData.channels() else store.channels; val filtered = channels.filter { q.isBlank() || it.name.contains(q, true) || it.group.orEmpty().contains(q, true) }; val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = V3Text, unfocusedTextColor = V3Text, focusedLabelColor = accent, unfocusedLabelColor = V3Muted, cursorColor = accent, focusedBorderColor = accent, unfocusedBorderColor = Color.White.copy(.22f)); Column(Modifier.fillMaxSize()) { V3Header("Suche", "Sender und Gruppen"); OutlinedTextField(q, { q = it }, label = { Text("Suchen…") }, singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)); Spacer(Modifier.height(12.dp)); LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) { items(filtered) { V3ChannelRow(it, glass, accent, onPlay) } } } }
+private fun V3Search(store: PlaylistStore, demo: Boolean, glass: Int, accent: Color, onPlay: (Channel) -> Unit) { var q by remember { mutableStateOf("") }; val channels = if (demo) DemoData.channels() else store.channels; val filtered = channels.filter { q.isBlank() || it.name.contains(q, true) || it.group.orEmpty().contains(q, true) }; val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = V3Text, unfocusedTextColor = V3Text, focusedLabelColor = accent, unfocusedLabelColor = V3Muted, cursorColor = accent, focusedBorderColor = accent, unfocusedBorderColor = Color.White.copy(.22f)); Column(Modifier.fillMaxSize()) { V3Header("Suche", "Sender und Gruppen"); OutlinedTextField(q, { q = it }, label = { Text("Suchen…") }, singleLine = true, colors = fieldColors, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)); Spacer(Modifier.height(12.dp)); LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) { items(filtered) { V3ChannelRow(it, glass, accent, onPlay) } } }
+}
 
 @Composable
 private fun V3Settings(settings: SettingsStore, glass: Int, accent: Color, onSources: () -> Unit) { var tab by remember { mutableIntStateOf(0) }; val tabs = listOf("Player", "Live TV", "EPG", "Darstellung", "Seitenleiste", "Quellen"); Column(Modifier.fillMaxSize()) { V3Header("Einstellungen", "Mit OK ändern · ←/→ Werte wechseln"); Spacer(Modifier.height(12.dp)); LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) { itemsIndexed(tabs) { i, t -> V3Pill(if (tab == i) "● $t" else t, accent) { tab = i } } }; Spacer(Modifier.height(12.dp)); when (tab) { 0 -> V3Panel("Player", "Wiedergabe", glass) { V3Choice("Engine", settings.player.engine.label, PlaybackEngine.entries.map { it.label }, accent) { v -> settings.updatePlayer(settings.player.copy(engine = PlaybackEngine.entries.first { it.label == v })) }; V3Choice("Buffer", settings.player.bufferMode.label, BufferMode.entries.map { it.label }, accent) { v -> settings.updatePlayer(settings.player.copy(bufferMode = BufferMode.entries.first { it.label == v })) } }; 1 -> V3Panel("Live TV", "Zapping und Catch-up", glass) { V3Toggle("Shared Catch-up bevorzugen", settings.player.preferCatchupSibling, accent) { settings.updatePlayer(settings.player.copy(preferCatchupSibling = it)) }; V3Toggle("Timeshift wenn verfügbar", settings.player.enableTimeshiftWhenAvailable, accent) { settings.updatePlayer(settings.player.copy(enableTimeshiftWhenAvailable = it)) } }; 2 -> V3Panel("EPG", "Ansicht", glass) { V3Choice("Zeitraum", settings.epg.pageSize.label, EpgPageSize.entries.map { it.label }, accent) { v -> settings.updateEpg(settings.epg.copy(pageSize = EpgPageSize.entries.first { it.label == v })) }; V3Toggle("Programmfortschritt", settings.epg.showProgrammeProgress, accent) { settings.updateEpg(settings.epg.copy(showProgrammeProgress = it)) } }; 3 -> V3Panel("Darstellung", "Änderungen wirken direkt", glass) { V3Choice("Theme", settings.ui.theme.label, ZenTheme.entries.map { it.label }, accent) { v -> settings.updateUi(settings.ui.copy(theme = ZenTheme.entries.first { it.label == v })) }; V3Choice("Hintergrund", settings.ui.animatedBackdrop.label, AnimatedBackdrop.entries.map { it.label }, accent) { v -> settings.updateUi(settings.ui.copy(animatedBackdrop = AnimatedBackdrop.entries.first { it.label == v })) }; V3Choice("Glasstärke", settings.ui.glassIntensity.toString(), (1..10).map { it.toString() }, accent) { v -> settings.updateUi(settings.ui.copy(glassIntensity = v.toInt())) }; V3Choice("UI-Skalierung", "${settings.ui.uiScale}%", (75..125 step 5).map { "$it%" }, accent) { v -> settings.updateUi(settings.ui.copy(uiScale = v.removeSuffix("%").toInt())) }; V3Toggle("Animationen", settings.ui.animations, accent) { settings.updateUi(settings.ui.copy(animations = it)) } }; 4 -> V3Panel("Seitenleiste", "Reihenfolge und Sichtbarkeit", glass) { SidebarCustomizer(settings, accent) }; else -> V3Panel("Quellen", "M3U, URL und Xtream", glass) { Text("Playlist-Verwaltung bleibt bewusst in den Einstellungen.", color = V3Muted, fontSize = 12.sp); V3Action("Quelle hinzufügen / wechseln", accent, onSources) } } } }
@@ -242,12 +277,13 @@ private fun V3Panel(title: String, subtitle: String, glass: Int, content: @Compo
 private fun V3Choice(label: String, value: String, options: List<String>, accent: Color, onChange: (String) -> Unit) { var f by remember { mutableStateOf(false) }; var index by remember(value) { mutableIntStateOf(options.indexOf(value).coerceAtLeast(0)) }; fun change(delta: Int) { index = (index + delta + options.size) % options.size; onChange(options[index]) }; Row(Modifier.fillMaxWidth().height(50.dp).onFocusChanged { f = it.isFocused }.background(if (f) accent.copy(.11f) else Color.Transparent, RoundedCornerShape(13.dp)).border(if (f) 1.dp else 0.dp, if (f) accent.copy(.75f) else Color.Transparent, RoundedCornerShape(13.dp)).tvAction { change(1) }.onKeyEvent { e -> if (e.type != KeyEventType.KeyUp) return@onKeyEvent false; when (e.key) { Key.DirectionLeft -> { change(-1); true }; Key.DirectionRight -> { change(1); true }; else -> false } }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, color = V3Muted, fontSize = 12.sp); Spacer(Modifier.weight(1f)); Text(value, color = V3Text, fontSize = 12.sp, fontWeight = FontWeight.Bold); Text("  ← / →", color = accent, fontSize = 9.sp) } }
 
 @Composable
-private fun V3Toggle(label: String, checked: Boolean, accent: Color, onChange: (Boolean) -> Unit) { var f by remember { mutableStateOf(false) }; Row(Modifier.fillMaxWidth().height(50.dp).onFocusChanged { f = it.isFocused }.background(if (f) accent.copy(.10f) else Color.Transparent, RoundedCornerShape(13.dp)).tvAction { onChange(!checked) }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, color = V3Text, fontSize = 12.sp); Spacer(Modifier.weight(1f)); Text(if (checked) "AN" else "AUS", color = if (checked) accent else V3Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold) } }
+private fun V3Toggle(label: String, checked: Boolean, accent: Color, onChange: (Boolean) -> Unit) { var f by remember { mutableStateOf(false) }; Row(Modifier.fillMaxWidth().height(50.dp).onFocusChanged { f = it.isFocused }.background(if (f) accent.copy(.10f) else Color.Transparent, RoundedCornerShape(13.dp)).tvAction { onChange(!checked) }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) { Text(label, color = V3Text, fontSize = 12.sp); Spacer(Modifier.weight(1f)); Text(if (checked) "AN" else "AUS", color = if (checked) accent else V3Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+}
 
 @Composable
 private fun V3Player(channels: List<Channel>, index: Int, settings: SettingsStore, accent: Color, onClose: () -> Unit, onChannel: (Int) -> Unit) { BackHandler(onBack = onClose); var controls by remember { mutableStateOf(true) }; var current by remember(index) { mutableIntStateOf(index.coerceIn(0, channels.lastIndex)) }; val channel = channels[current]; Box(Modifier.fillMaxSize().background(Color.Black).onKeyEvent { e -> if (e.type != KeyEventType.KeyUp) return@onKeyEvent false; when (e.key) { Key.DirectionUp, Key.ChannelUp -> { current = (current - 1 + channels.size) % channels.size; onChannel(current); true }; Key.DirectionDown, Key.ChannelDown -> { current = (current + 1) % channels.size; onChannel(current); true }; Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { controls = !controls; true }; Key.Back -> { onClose(); true }; else -> false } }) { ZenPlayerScreen(channel, settings, onBack = onClose); if (controls) { Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(24.dp).background(Color.Black.copy(.70f), RoundedCornerShape(22.dp)).border(1.dp, Color.White.copy(.14f), RoundedCornerShape(22.dp)).padding(16.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(channel.name, color = V3Text, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(channel.group ?: "Live TV", color = V3Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp)) }; V3PlayerButton("−", accent) { current = (current - 1 + channels.size) % channels.size; onChannel(current) }; Spacer(Modifier.width(8.dp)); V3PlayerButton("+", accent) { current = (current + 1) % channels.size; onChannel(current) }; Spacer(Modifier.width(8.dp)); V3PlayerButton("×", accent, onClose) }; Text("↑/↓ Sender wechseln · OK Overlay · Zurück schließen", color = V3Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 10.dp)) } } } }
 
 @Composable
-private fun V3PlayerButton(label: String, accent: Color, onClick: () -> Unit) { var f by remember { mutableStateOf(false) }; Box(Modifier.width(50.dp).height(50.dp).onFocusChanged { f = it.isFocused }.background(if (f) accent.copy(.20f) else Color.White.copy(.07f), RoundedCornerShape(15.dp)).border(if (f) 1.dp else 0.dp, if (f) accent else Color.Transparent, RoundedCornerShape(15.dp)).tvAction(onClick), Alignment.Center) { Text(label, color = V3Text, fontSize = 21.sp, fontWeight = FontWeight.Bold) } }
+private fun V3PlayerButton(label: String, accent: Color, onClick: () -> Unit) { var f by remember { mutableStateOf(false) }; Box(Modifier.width(50.dp).height(50.dp).onFocusChanged { f = it.isFocused }.background(if (f) accent.copy(.20f) else Color.White.copy(.07f), RoundedCornerShape(15.dp)).border(if (f) 1.dp else 0.dp, if (f) accent else Color.Transparent, RoundedCornerShape(15.dp)).tvAction(onClick), Alignment.Center) { Text(label, color = V3Text, fontSize = 21.sp, fontWeight = FontWeight.Bold) }
 
 private fun initials3(name: String): String = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }.ifBlank { "TV" }
