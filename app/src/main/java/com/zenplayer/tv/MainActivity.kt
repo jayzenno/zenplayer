@@ -3,16 +3,8 @@ package com.zenplayer.tv
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
@@ -30,23 +22,11 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                val initialFocus = remember { FocusRequester() }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        // A FocusRequester on a non-focusable parent resolves to the
-                        // first focusable descendant. This is the Compose focus rule
-                        // used by Android TV samples for deterministic focus entry.
-                        .focusRequester(initialFocus)
-                ) {
-                    ZenPlayerShellV6(SettingsStore(this@MainActivity))
-                }
-
-                LaunchedEffect(initialFocus) {
-                    withFrameNanos { }
-                    initialFocus.requestFocus()
-                }
+                // Focus ownership belongs to the TV shell. Do not attach a
+                // FocusRequester to a non-focusable wrapper and expect it to
+                // resolve to a descendant; Android TV focus is established by
+                // the actual focusable targets in ZenPlayerShellV6.
+                ZenPlayerShellV6(SettingsStore(this@MainActivity))
             }
         }
     }
