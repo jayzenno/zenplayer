@@ -23,12 +23,7 @@ import kotlin.math.sin
 fun ZenAnimatedBackdrop(theme: ZenTheme, mode: AnimatedBackdrop, enabled: Boolean = true) {
     if (!enabled || mode == AnimatedBackdrop.NONE) return
     val transition = rememberInfiniteTransition(label = "zen-backdrop")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (Math.PI * 2).toFloat(),
-        animationSpec = infiniteRepeatable(tween(18000), RepeatMode.Restart),
-        label = "backdrop-phase"
-    )
+    val phase by transition.animateFloat(0f, (Math.PI * 2).toFloat(), infiniteRepeatable(tween(18000), RepeatMode.Restart), label = "backdrop-phase")
     val colors = remember(theme) {
         when (theme) {
             ZenTheme.AURORA -> listOf(Color(0xFF7C5CFF), Color(0xFF29D9C2), Color(0xFF16204F))
@@ -37,14 +32,12 @@ fun ZenAnimatedBackdrop(theme: ZenTheme, mode: AnimatedBackdrop, enabled: Boolea
             ZenTheme.AMBER -> listOf(Color(0xFFFFB45E), Color(0xFFFF6F91), Color(0xFF351A12))
         }
     }
-
     Canvas(Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
         val cx = w * .52f
         val cy = h * .44f
         val radius = minOf(w, h) * .22f
-
         when (mode) {
             AnimatedBackdrop.AURORA_FLOW -> {
                 val x1 = cx + cos(phase) * w * .22f
@@ -66,13 +59,17 @@ fun ZenAnimatedBackdrop(theme: ZenTheme, mode: AnimatedBackdrop, enabled: Boolea
             }
             AnimatedBackdrop.MESH -> {
                 val spacing = (minOf(w, h) * .13f).coerceAtLeast(70f)
-                for (x in -spacing..w step spacing) {
+                var x = -spacing
+                while (x <= w + spacing) {
                     val wave = sin(x * .008f + phase) * h * .035f
-                    drawLine(colors[0].copy(.045f), Offset(x, 0f + wave), Offset(x + w * .10f, h), strokeWidth = 1.1f)
+                    drawLine(colors[0].copy(.045f), Offset(x, wave), Offset(x + w * .10f, h), strokeWidth = 1.1f)
+                    x += spacing
                 }
-                for (y in -spacing..h step spacing) {
+                var y = -spacing
+                while (y <= h + spacing) {
                     val wave = cos(y * .009f + phase * .8f) * w * .025f
-                    drawLine(colors[1].copy(.035f), Offset(0f + wave, y), Offset(w, y + h * .08f), strokeWidth = 1.1f)
+                    drawLine(colors[1].copy(.035f), Offset(wave, y), Offset(w, y + h * .08f), strokeWidth = 1.1f)
+                    y += spacing
                 }
             }
             AnimatedBackdrop.NONE -> Unit
