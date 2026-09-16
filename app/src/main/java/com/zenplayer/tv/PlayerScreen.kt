@@ -39,7 +39,10 @@ fun ZenPlayerScreen(channel: Channel, settings: SettingsStore, onBack: () -> Uni
                 launchExternalPlayer(context, channel.streamUrl, settings.player.externalPlayerPackage)
                 onBack()
             }
-            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center)
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {}
         }
     }
 }
