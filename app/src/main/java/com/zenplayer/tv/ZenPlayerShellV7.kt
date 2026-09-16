@@ -62,7 +62,11 @@ fun ZenPlayerShellV7(settings: SettingsStore) {
     val center = now + day * 86_400_000L; val from = center - 6 * 3_600_000L; val to = center + 18 * 3_600_000L
     Box(Modifier.fillMaxSize()) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 30.dp)) {
-            item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { V7Button("‹ Gestern", accent) { day-- }; V7Button("Heute", accent) { day = 0 }; V7Button("Morgen ›", accent) { day++ } } }
+            item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                V7Button("‹ Gestern", accent) { day = (day - 1).coerceAtLeast(-1) }
+                V7Button("Heute", accent) { day = 0 }
+                V7Button("Morgen ›", accent) { day = (day + 1).coerceAtMost(1) }
+            } }
             store.channels.forEach { c ->
                 val ps = store.programmes.filter { it.channelId == c.id && it.end > from && it.start < to }.sortedBy { it.start }
                 if (ps.isNotEmpty()) {
@@ -76,8 +80,9 @@ fun ZenPlayerShellV7(settings: SettingsStore) {
         }
         details?.let { (c, p) ->
             V7Details(c, p, accent, onClose = { details = null }) {
-                val resolved = if (p.end <= System.currentTimeMillis() && p.isCatchupAvailable) CatchupResolver.resolve(c, p, store.channels, true) else null
-                if (resolved != null) onPlay(resolved) else if (p.start <= System.currentTimeMillis()) onPlay(c)
+                val current = p.start <= System.currentTimeMillis() && p.end > System.currentTimeMillis()
+                val resolved = if (!current && p.end <= System.currentTimeMillis() && p.isCatchupAvailable) CatchupResolver.resolve(c, p, store.channels, true) else null
+                if (resolved != null) onPlay(resolved) else if (current) onPlay(c)
                 details = null
             }
         }
@@ -85,15 +90,20 @@ fun ZenPlayerShellV7(settings: SettingsStore) {
 }
 
 @Composable private fun V7Programme(p: EpgProgramme, accent: Color, current: Boolean, past: Boolean, onOpen: () -> Unit) {
-    var focused by remember(p.id) { mutableStateOf(false) }; val status = when { current -> "● LIVE"; past && p.isCatchupAvailable -> "REPLAY"; past -> "VERGANGEN"; else -> "SPÄTER" }
+    var focused by remember(p.id) { mutableStateOf(false) }
+    val status = when { current -> "● LIVE"; past && p.isCatchupAvailable -> "REPLAY"; past -> "VERGANGEN"; else -> "SPÄTER" }
     Row(Modifier.fillMaxWidth().height(68.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V7Keys) { onOpen(); true } else false }.background(if (focused || current) accent.copy(if (focused) .17f else .09f) else Color.White.copy(.05f), RoundedCornerShape(15.dp)).border(if (focused || current) 2.dp else 1.dp, if (focused || current) accent else Color.Transparent, RoundedCornerShape(15.dp)).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(p.start)), color = accent, fontSize = 11.sp, modifier = Modifier.width(52.dp)); Column(Modifier.weight(1f)) { Text(p.title, color = V7Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(p.subtitle ?: p.category ?: "TV", color = V7Muted, fontSize = 9.sp) }; Text(status, color = if (current || p.isCatchupAvailable) accent else V7Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable private fun V7Details(channel: Channel, p: EpgProgramme, accent: Color, onClose: () -> Unit, onPlay: () -> Unit) {
+    val now = System.currentTimeMillis(); val past = p.end <= now; val current = p.start <= now && !past; val replayAvailable = past && p.isCatchupAvailable
     Box(Modifier.fillMaxSize().background(Color(0xEE05070D)), Alignment.Center) { Column(Modifier.width(760.dp).background(Color(0xF0181D29), RoundedCornerShape(28.dp)).border(1.dp, Color.White.copy(.14f), RoundedCornerShape(28.dp)).padding(28.dp)) {
-        Text("${channel.name} · SENDUNGSDETAILS", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(8.dp)); Text(p.title, color = V7Text, fontSize = 28.sp, fontWeight = FontWeight.Black); Text("${fmtV7(p.start)} – ${fmtV7(p.end)}", color = V7Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp)); p.subtitle?.takeIf { it.isNotBlank() }?.let { Text(it, color = V7Text, fontSize = 15.sp, modifier = Modifier.padding(top = 12.dp)) }; p.description?.takeIf { it.isNotBlank() }?.let { Text(it, color = V7Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp), maxLines = 6) }; Spacer(Modifier.height(18.dp)); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { if (p.start <= System.currentTimeMillis()) V7Button(if (p.end <= System.currentTimeMillis() && p.isCatchupAvailable) "▶ Von vorne starten" else "▶ Live ansehen", accent, onPlay); V7Button("Zurück", accent, onClose) }
+        Text("${channel.name} · SENDUNGSDETAILS", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(8.dp)); Text(p.title, color = V7Text, fontSize = 28.sp, fontWeight = FontWeight.Black); Text("${fmtV7(p.start)} – ${fmtV7(p.end)}", color = V7Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp)); p.subtitle?.takeIf { it.isNotBlank() }?.let { Text(it, color = V7Text, fontSize = 15.sp, modifier = Modifier.padding(top = 12.dp)) }; p.description?.takeIf { it.isNotBlank() }?.let { Text(it, color = V7Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp), maxLines = 6) }; Spacer(Modifier.height(18.dp)); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            when { replayAvailable -> V7Button("▶ Von vorne starten", accent, onPlay); current -> V7Button("▶ Live ansehen", accent, onPlay) }
+            V7Button("Zurück", accent, onClose)
+        }
     } }
 }
 
