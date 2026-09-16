@@ -85,8 +85,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                         Key.DirectionDown -> { if (channels.isNotEmpty()) playerIndex = (playerIndex + 1) % channels.size; zapUntil = System.currentTimeMillis() + 2800L; true }
                         else -> false
                     }
-                }, false)
-                V6ZapOverlay(channel, accent, zapUntil)
+                }, true)
             }
             else -> Row(Modifier.fillMaxSize().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 V6Sidebar(page, accent) { page = it }
@@ -161,19 +160,6 @@ private fun V6Channel(channel: Channel, accent: Color, action: () -> Unit) {
         if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.size(48.dp), contentScale = ContentScale.Fit) else Box(Modifier.size(48.dp).background(accent.copy(.12f), RoundedCornerShape(13.dp)), Alignment.Center) { Text(initialsV6(channel.name), color = accent, fontWeight = FontWeight.Bold) }
         Column(Modifier.weight(1f).padding(start = 14.dp)) { Text(channel.name, color = V6Text, fontSize = 15.sp, fontWeight = FontWeight.Bold); Text(channel.group ?: "Live TV", color = V6Muted, fontSize = 10.sp) }
         Text(if (channel.isCatchupCapable) "CATCHUP" else "LIVE", color = if (focused) accent else V6Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun V6ZapOverlay(channel: Channel, accent: Color, visibleUntil: Long) {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(visibleUntil) { while (visibleUntil > System.currentTimeMillis()) { now = System.currentTimeMillis(); delay(80) } }
-    if (visibleUntil == 0L || visibleUntil <= now) return
-    Box(Modifier.fillMaxSize().padding(28.dp), contentAlignment = Alignment.TopStart) {
-        Row(Modifier.width(430.dp).background(Color(0xEC111721), RoundedCornerShape(24.dp)).border(1.dp, accent.copy(.55f), RoundedCornerShape(24.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (!channel.logoUrl.isNullOrBlank()) AsyncImage(channel.logoUrl, channel.name, Modifier.size(68.dp), contentScale = ContentScale.Fit) else Box(Modifier.size(68.dp).background(accent.copy(.12f), RoundedCornerShape(16.dp)), Alignment.Center) { Text(initialsV6(channel.name), color = accent, fontSize = 18.sp, fontWeight = FontWeight.Black) }
-            Column(Modifier.padding(start = 16.dp)) { Text(channel.name, color = V6Text, fontSize = 20.sp, fontWeight = FontWeight.Black, maxLines = 1); Text(channel.group ?: "Live TV", color = V6Muted, fontSize = 11.sp); Spacer(Modifier.height(8.dp)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Text(if (channel.isCatchupCapable) "CATCHUP" else "● LIVE", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black); Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date()), color = V6Muted, fontSize = 10.sp) } }
-        }
     }
 }
 
@@ -263,17 +249,11 @@ private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, i
             .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter)) { startEditing(); true } else false }
             .background(if (focused) Color.White.copy(.10f) else Color.White.copy(.035f), RoundedCornerShape(14.dp))
             .border(if (focused) 2.dp else 1.dp, if (focused) Color.White.copy(.55f) else Color.White.copy(.10f), RoundedCornerShape(14.dp)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(label, color = if (focused) V6Text else V6Muted, fontSize = 9.sp)
-                Text(if (value.isBlank()) "OK zum Eingeben" else value, color = V6Text, fontSize = 13.sp, maxLines = 1)
-            }
+            Column(Modifier.weight(1f)) { Text(label, color = if (focused) V6Text else V6Muted, fontSize = 9.sp); Text(if (value.isBlank()) "OK zum Eingeben" else value, color = V6Text, fontSize = 13.sp, maxLines = 1) }
             if (focused) Text("OK", color = V6Text, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         }
     } else {
-        OutlinedTextField(value, onValue, label = { Text(label) }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).onKeyEvent { e ->
-                if (e.type == KeyEventType.KeyUp && e.key == Key.Escape) { true } else false
-            })
+        OutlinedTextField(value, onValue, label = { Text(label) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
     }
 }
 
