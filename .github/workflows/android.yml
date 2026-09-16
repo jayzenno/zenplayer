@@ -28,6 +28,16 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Prepare TV focus behavior
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/zenplayer/tv/ZenPlayerShell.kt')
+          s = p.read_text()
+          s = s.replace('if (index == 0) Modifier.focusRequester(requester)', 'if (index == page) Modifier.focusRequester(requester)')
+          p.write_text(s)
+          PY
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
 
