@@ -1,33 +1,28 @@
 package com.zenplayer.tv.domain.epg
 
 import com.zenplayer.tv.domain.model.EpgProgramme
-import java.time.Duration
-import java.time.Instant
 
-/**
- * Pure EPG navigation helpers. The guide can move indefinitely through the provider's
- * available programme data; the UI decides how much data to request around the cursor.
- */
+/** Pure EPG navigation helpers. The UI can request more pages as the cursor moves. */
 object EpgNavigation {
-    private val page = Duration.ofHours(6)
+    const val PAGE_MILLIS: Long = 6L * 60L * 60L * 1000L
 
-    fun previous(windowStart: Instant): Instant = windowStart.minus(page)
-    fun next(windowStart: Instant): Instant = windowStart.plus(page)
+    fun previous(windowStart: Long): Long = windowStart - PAGE_MILLIS
+    fun next(windowStart: Long): Long = windowStart + PAGE_MILLIS
 
-    fun currentProgramme(programmes: List<EpgProgramme>, now: Instant): EpgProgramme? =
-        programmes.firstOrNull { !now.isBefore(it.start) && now.isBefore(it.end) }
+    fun currentProgramme(programmes: List<EpgProgramme>, now: Long): EpgProgramme? =
+        programmes.firstOrNull { now >= it.start && now < it.end }
 
-    fun startFromBeginning(programme: EpgProgramme, now: Instant): CatchupStart {
+    /** Starts a catch-up playback at the exact beginning of the selected programme. */
+    fun startFromBeginning(programme: EpgProgramme, now: Long): CatchupStart {
         require(programme.isCatchupAvailable) { "Catch-up is not available for this programme" }
-        return CatchupStart(programme.start, now.coerceIn(programme.start, programme.end))
+        return CatchupStart(programmeStart = programme.start, liveReferenceTime = now.coerceIn(programme.start, programme.end))
     }
 
-    private fun Instant.coerceIn(min: Instant, max: Instant): Instant =
-        when {
-            isBefore(min) -> min
-            isAfter(max) -> max
-            else -> this
-        }
+    private fun Long.coerceIn(min: Long, max: Long): Long = when {
+        this < min -> min
+        this > max -> max
+        else -> this
+    }
 }
 
-data class CatchupStart(val programmeStart: Instant, val liveReferenceTime: Instant)
+data class CatchupStart(val programmeStart: Long, val liveReferenceTime: Long)
