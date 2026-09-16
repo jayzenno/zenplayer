@@ -35,15 +35,16 @@ fun ZenAnimatedBackdrop(theme: ZenTheme, mode: AnimatedBackdrop, enabled: Boolea
         val w = size.width
         val h = size.height
         val t = phase * 6.2831855f
+        val glass = ZenGlass.intensity.coerceIn(1, 10) / 10f
         drawRect(Brush.verticalGradient(listOf(Color(0xFF020307), colors.third.copy(alpha = .72f), Color(0xFF020307))))
         fun glow(x: Float, y: Float, r: Float, c: Color, a: Float) {
-            drawCircle(Brush.radialGradient(listOf(c.copy(alpha = a), c.copy(alpha = a * .28f), Color.Transparent), Offset(x, y), r), r, Offset(x, y))
+            drawCircle(Brush.radialGradient(listOf(c.copy(alpha = a * (.55f + glass * .65f)), c.copy(alpha = a * .18f), Color.Transparent), Offset(x, y), r), r, Offset(x, y))
         }
         glow(w * (.16f + .045f * sin(t * .18f)), h * (.18f + .035f * cos(t * .15f)), minOf(w, h) * .85f, colors.first, .12f)
         glow(w * (.84f + .045f * cos(t * .16f)), h * (.64f + .045f * sin(t * .13f)), minOf(w, h) * .78f, colors.second, .10f)
         glow(w * (.52f + .08f * sin(t * .10f)), h * (.90f + .025f * cos(t * .12f)), minOf(w, h) * .55f, colors.first, .055f)
         if (mode == AnimatedBackdrop.ORBIT) glow(w * (.50f + .11f * cos(t * .07f)), h * (.45f + .07f * sin(t * .07f)), minOf(w, h) * .45f, colors.second, .045f)
         if (mode == AnimatedBackdrop.MESH) glow(w * (.32f + .08f * sin(t * .09f)), h * (.55f + .06f * cos(t * .08f)), minOf(w, h) * .48f, colors.first, .035f)
-        drawRect(Color.Black.copy(alpha = .27f))
+        drawRect(Color.Black.copy(alpha = .30f - glass * .07f))
     }
 }
