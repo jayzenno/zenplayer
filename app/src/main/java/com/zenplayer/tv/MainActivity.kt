@@ -22,9 +22,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                // V5 is the active TV shell. It owns navigation, source forms,
-                // zap chrome and player presentation; V3 remains in the tree as a rollback reference.
-                ZenPlayerShellV5(SettingsStore(this@MainActivity))
+                ZenPlayerShellV6(SettingsStore(this@MainActivity))
             }
         }
     }
