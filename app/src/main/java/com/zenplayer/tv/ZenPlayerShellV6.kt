@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
@@ -65,14 +67,24 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var demo by remember { mutableStateOf(false) }
     var playerIndex by remember { mutableIntStateOf(-1) }
     var showExitDialog by remember { mutableStateOf(false) }
+    var homeBackReset by remember { mutableStateOf(false) }
+    val homeFocusRequester = remember { FocusRequester() }
     val channels = if (demo) DemoData.channels() else store.channels
 
     BackHandler(enabled = true) {
         when {
             showExitDialog -> showExitDialog = false
             playerIndex >= 0 -> playerIndex = -1
-            sources -> { sources = false; page = sourceReturn }
-            page != "home" -> page = "home"
+            sources -> { sources = false; page = sourceReturn; homeBackReset = false }
+            page != "home" -> {
+                page = "home"
+                homeBackReset = false
+                homeFocusRequester.requestFocus()
+            }
+            !homeBackReset -> {
+                homeBackReset = true
+                homeFocusRequester.requestFocus()
+            }
             else -> showExitDialog = true
         }
     }
@@ -110,10 +122,13 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(page, accent) { page = it }
+                V6Sidebar(page, accent, homeFocusRequester) { selected ->
+                    if (selected != page) homeBackReset = false
+                    page = selected
+                }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     when (page) {
-                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true }, { demo = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
+                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true; homeBackReset = false }, { demo = false; homeBackReset = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
                         "epg" -> V6Epg(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
                         "search" -> V6Search(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
                         else -> V6Settings(settings, accent) { sourceReturn = page; sources = true }
@@ -125,16 +140,18 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
-    LaunchedEffect(page) {
-        // Do not rely on an arbitrary millisecond delay. Compose/Android TV focus is
-        // only reliable once the focus targets have actually been placed in the tree.
+    LaunchedEffect(homeFocusRequester) {
         withFrameNanos { }
+        homeFocusRequester.requestFocus()
+    }
+
+    LaunchedEffect(page) {
         withFrameNanos { }
         requesters[ids.indexOf(page).coerceAtLeast(0)].requestFocus()
     }
@@ -145,7 +162,9 @@ private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
             .wrapContentHeight()
             .background(Color.White.copy(.045f), RoundedCornerShape(24.dp))
             .border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp))
-            .padding(10.dp),
+            .padding(10.dp)
+            .focusRestorer(homeFocusRequester)
+            .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -155,12 +174,16 @@ private fun V6Sidebar(page: String, accent: Color, onPage: (String) -> Unit) {
         ids.forEachIndexed { i, id ->
             var focused by remember { mutableStateOf(false) }
             val active = focused || page == id
+            val requester = if (i == 0) homeFocusRequester else requesters[i]
             Box(
                 Modifier
                     .size(58.dp)
-                    .focusRequester(requesters[i])
+                    .focusRequester(requester)
+                    .onFocusChanged {
+                        focused = it.isFocused
+                        if (id == "home" && it.isFocused) homeBackReset = false
+                    }
                     .focusable()
-                    .onFocusChanged { focused = it.isFocused }
                     .onKeyEvent { e ->
                         if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) {
                             onPage(id)
