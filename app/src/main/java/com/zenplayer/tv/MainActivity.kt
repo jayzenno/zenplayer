@@ -9,11 +9,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import kotlinx.coroutines.android.awaitFrame
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,15 +36,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         // A FocusRequester on a non-focusable parent resolves to the
-                        // first focusable descendant. This is the same Compose focus
-                        // rule used by Android's TV samples for deterministic entry.
+                        // first focusable descendant. This is the Compose focus rule
+                        // used by Android TV samples for deterministic focus entry.
                         .focusRequester(initialFocus)
                 ) {
                     ZenPlayerShellV6(SettingsStore(this@MainActivity))
                 }
 
                 LaunchedEffect(initialFocus) {
-                    awaitFrame()
+                    withFrameNanos { }
                     initialFocus.requestFocus()
                 }
             }
