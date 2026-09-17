@@ -2,6 +2,9 @@ package com.zenplayer.tv
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.zenplayer.tv.data.epg.EpgRepository
 import com.zenplayer.tv.data.epg.XmlTvParser
 import com.zenplayer.tv.data.m3u.M3uParser
@@ -18,19 +21,18 @@ class PlaylistStore(private val context: Context) {
     private val playlistFile get() = File(context.filesDir, "playlist.m3u")
     private val epgFile get() = File(context.filesDir, "epg.xml")
     private val epgRepository = EpgRepository()
-    var channels: List<Channel> = loadChannels()
+
+    var channels by mutableStateOf(loadChannels())
         private set
-    var programmes: List<EpgProgramme> = loadProgrammes()
+    var programmes by mutableStateOf(loadProgrammes())
         private set
 
     fun importPlaylist(text: String) {
-        require(text.isNotEmpty()) { "Die M3U ist leer." }
+        require(text.isNotBlank()) { "Die M3U ist leer." }
         val parsed = M3uParser.parse(text)
         require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
         playlistFile.writeText(text)
         channels = parsed
-        // Do not synchronously re-parse a potentially huge XMLTV file here.
-        // EPG is loaded on startup / explicit EPG refresh instead.
         programmes = emptyList()
     }
 
@@ -50,15 +52,11 @@ class PlaylistStore(private val context: Context) {
 
     suspend fun importPlaylistFromFile(file: File) = withContext(Dispatchers.IO) {
         require(file.exists()) { "Datei nicht gefunden." }
-        val temp = File.createTempFile("zenplaylist", ".m3u", context.cacheDir)
-        try {
-            file.inputStream().use { input -> temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
-            val parsed = temp.inputStream().bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
-            require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
-            temp.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
-            channels = parsed
-            programmes = emptyList()
-        } finally { temp.delete() }
+        val parsed = file.inputStream().bufferedReader(Charsets.UTF_8).use { M3uParser.parse(it) }
+        require(parsed.isNotEmpty()) { "Die M3U enthält keine gültigen Sender." }
+        file.inputStream().use { input -> playlistFile.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
+        channels = parsed
+        programmes = emptyList()
     }
 
     suspend fun importPlaylistFromUrl(url: String) = withContext(Dispatchers.IO) {
@@ -66,7 +64,7 @@ class PlaylistStore(private val context: Context) {
         require(clean.startsWith("http://") || clean.startsWith("https://")) { "Bitte eine gültige http(s)-URL eingeben." }
         val connection = (URL(clean).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15_000
-            readTimeout = 20_000
+            readTimeout = 30_000
             instanceFollowRedirects = true
             setRequestProperty("User-Agent", "ZenPlayer/1.0 AndroidTV")
             setRequestProperty("Accept", "application/x-mpegURL, audio/x-mpegurl, text/plain, */*")
@@ -91,12 +89,16 @@ class PlaylistStore(private val context: Context) {
     }
 
     fun importEpg(text: String) {
+        require(text.isNotBlank()) { "Die EPG-Datei ist leer." }
         epgFile.writeText(text)
         programmes = epgRepository.replaceFromXmlTv(text, channels)
     }
 
     fun clear() {
-        playlistFile.delete(); epgFile.delete(); channels = emptyList(); programmes = emptyList()
+        playlistFile.delete()
+        epgFile.delete()
+        channels = emptyList()
+        programmes = emptyList()
     }
 
     fun channelLogo(channel: Channel): String? = channel.logoUrl ?: channel.tvgId?.let { id ->
