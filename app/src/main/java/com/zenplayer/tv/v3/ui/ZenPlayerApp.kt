@@ -1,5 +1,6 @@
 package com.zenplayer.tv.v3.ui
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,8 +36,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.first
 
 private data class NavItem(
     val label: String,
@@ -44,6 +48,19 @@ private data class NavItem(
 
 @Composable
 fun ZenPlayerApp() {
+    val context = LocalContext.current
+    val themeStore = remember(context) { ZenThemeStore(context.applicationContext) }
+    var themeState by remember { mutableStateOf(ZenThemeState()) }
+    var themeHydrated by remember { mutableStateOf(false) }
+
+    LaunchedEffect(themeStore) {
+        themeState = themeStore.state.first()
+        themeHydrated = true
+    }
+    LaunchedEffect(themeState, themeHydrated) {
+        if (themeHydrated) themeStore.save(themeState)
+    }
+
     val nav = remember {
         listOf(
             NavItem("Home", Icons.Default.Home),
@@ -55,7 +72,6 @@ fun ZenPlayerApp() {
     }
     var selected by remember { mutableIntStateOf(0) }
     var contentHasFocus by remember { mutableIntStateOf(0) }
-    var themeState by remember { mutableStateOf(ZenThemeState()) }
 
     val sidebarRequester = remember { FocusRequester() }
     val contentRequester = remember { FocusRequester() }
@@ -69,7 +85,11 @@ fun ZenPlayerApp() {
     ZenTheme(themeState) {
         Box(Modifier.fillMaxSize()) {
             ZenBackground(themeState)
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = .76f)))
+            Box(
+                Modifier.fillMaxSize().background(
+                    MaterialTheme.colorScheme.background.copy(alpha = (1f - themeState.glassOpacity).coerceIn(.10f, .76f))
+                )
+            )
             Row(
                 Modifier.fillMaxSize().padding(24.dp),
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
