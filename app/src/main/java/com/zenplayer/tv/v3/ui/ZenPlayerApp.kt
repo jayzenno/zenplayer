@@ -1,6 +1,7 @@
 package com.zenplayer.tv.v3.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,13 +30,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private data class NavItem(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private data class NavItem(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 @Composable
 fun ZenPlayerApp() {
@@ -52,7 +53,10 @@ fun ZenPlayerApp() {
 
     MaterialTheme {
         Box(Modifier.fillMaxSize().background(Color(0xFF05070D))) {
-            Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(
+                Modifier.fillMaxSize().padding(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
                 Column(
                     Modifier.width(92.dp).fillMaxHeight().focusGroup(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -63,12 +67,23 @@ fun ZenPlayerApp() {
                         NavButton(item, index == selected) { selected = index }
                     }
                 }
-                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(nav[selected].label, color = Color.White, fontSize = 38.sp)
-                        Text("ZenPlayer 3.0 · Clean TV-first foundation", color = Color(0xFF9CA6BA), fontSize = 16.sp)
+                        Text(
+                            "ZenPlayer 3.0 · Clean TV-first foundation",
+                            color = Color(0xFF9CA6BA),
+                            fontSize = 16.sp
+                        )
                         Spacer(Modifier.width(1.dp))
-                        Text("Navigation, Datenquellen, EPG und Player werden jetzt einzeln aufgebaut.", color = Color(0xFF69748A), fontSize = 14.sp)
+                        Text(
+                            "Navigation, Datenquellen, EPG und Player werden jetzt einzeln aufgebaut.",
+                            color = Color(0xFF69748A),
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }
@@ -81,17 +96,19 @@ private fun NavButton(item: NavItem, active: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .width(76.dp)
-            .background(if (active) Color(0x227DE7FF) else Color.Transparent, RoundedCornerShape(20.dp))
+            .background(
+                if (active) Color(0x227DE7FF) else Color.Transparent,
+                RoundedCornerShape(20.dp)
+            )
             .focusable()
-            .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyUp && event.key in setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)) {
-                    onClick()
-                    true
-                } else false
-            }
+            .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Icon(item.icon, contentDescription = item.label, tint = if (active) Color.White else Color(0xFF8791A6))
+        Icon(
+            item.icon,
+            contentDescription = item.label,
+            tint = if (active) Color.White else Color(0xFF8791A6)
+        )
     }
 }
