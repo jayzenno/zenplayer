@@ -27,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRestorer
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,17 +73,18 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var homeBackReset by remember { mutableStateOf(false) }
     var focusRestoreRequest by remember { mutableIntStateOf(0) }
     var lastSidebarId by remember { mutableStateOf("home") }
-    var contentFocused by remember { mutableStateOf(false) }
+    var sidebarFocused by remember { mutableStateOf(true) }
     val homeFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     val channels = if (demo) DemoData.channels() else store.channels
 
     BackHandler(enabled = true) {
         when {
             showExitDialog -> showExitDialog = false
             playerIndex >= 0 -> playerIndex = -1
-            sources -> { sources = false; page = sourceReturn; homeBackReset = false; contentFocused = false }
-            contentFocused -> {
-                contentFocused = false
+            sources -> { sources = false; page = sourceReturn; homeBackReset = false; sidebarFocused = false }
+            !sidebarFocused -> {
+                sidebarFocused = true
                 focusRestoreRequest++
             }
             page != "home" -> {
@@ -113,7 +116,18 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
         )
     }
 
-    Box(Modifier.fillMaxSize().background(V6Bg)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(V6Bg)
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyUp && event.key == Key.DirectionRight && sidebarFocused) {
+                    sidebarFocused = false
+                    focusManager.moveFocus(FocusDirection.Right)
+                }
+                false
+            }
+    ) {
         ZenAnimatedBackdrop(ui.theme, ui.animatedBackdrop, !ui.reducedMotion)
         when {
             sources -> V6Sources(store, accent, { sources = false; page = sourceReturn }, { sources = false; page = sourceReturn })
@@ -132,9 +146,8 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(page, lastSidebarId, accent, homeFocusRequester, focusRestoreRequest) { selected ->
+                V6Sidebar(page, lastSidebarId, accent, homeFocusRequester, focusRestoreRequest, { focused -> sidebarFocused = focused }) { selected ->
                     lastSidebarId = selected
-                    contentFocused = true
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
@@ -142,9 +155,8 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .focusProperties {
-                            left = FocusRequester.Cancel
-                        }
+                        .focusProperties { left = FocusRequester.Cancel }
+                        .focusGroup()
                 ) {
                     when (page) {
                         "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true; homeBackReset = false }, { demo = false; homeBackReset = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
@@ -159,13 +171,13 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, lastSidebarId: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, lastSidebarId: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onFocusChanged: (Boolean) -> Unit, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
-    LaunchedEffect(homeFocusRequester, focusRestoreRequest, lastSidebarId) {
+    LaunchedEffect(homeFocusRequester, focusRestoreRequest) {
         withFrameNanos { }
         val index = ids.indexOf(lastSidebarId).takeIf { it >= 0 } ?: 0
         val requester = if (index == 0) homeFocusRequester else requesters[index]
@@ -195,7 +207,10 @@ private fun V6Sidebar(page: String, lastSidebarId: String, accent: Color, homeFo
                 Modifier
                     .size(58.dp)
                     .focusRequester(requester)
-                    .onFocusChanged { focused = it.isFocused }
+                    .onFocusChanged { state ->
+                        focused = state.isFocused
+                        onFocusChanged(state.isFocused)
+                    }
                     .focusable()
                     .onKeyEvent { e ->
                         if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) {
