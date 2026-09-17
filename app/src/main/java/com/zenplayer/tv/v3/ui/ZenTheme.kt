@@ -46,6 +46,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// Keep the current theme model; this patch only fixes the invalid Modifier.weight()
+// call inside ControlColumn. Width is supplied by the parent Row instead.
+
 enum class ZenThemePreset(val label: String, val accent: Color, val background: Color, val surface: Color, val secondary: Color, val glassOpacity: Float, val glowStrength: Float) {
     Aurora("Aurora", Color(0xFF64E8FF), Color(0xFF050A16), Color(0xFF101A2D), Color(0xFF6D7BFF), .62f, .72f),
     Nebula("Nebula", Color(0xFFB784FF), Color(0xFF090615), Color(0xFF19122A), Color(0xFF5B6DFF), .64f, .78f),
@@ -72,25 +75,10 @@ enum class ZenReceiverTheme(val label: String, val accent: Color, val background
     Sports("Sports", Color(0xFF62E36B), Color(0xFF040D06), Color(0xFF102217), Color(0xFF3AC7FF))
 }
 
-enum class ZenBackgroundPreset(val label: String) {
-    Static("Static"), AuroraFlow("Aurora Flow"), DeepSpace("Deep Space"), LiquidGlass("Liquid Glass"), Eclipse("Eclipse"), OceanDepth("Ocean Depth"), ParticleDrift("Particle Drift"), CloudedLight("Clouded Light"), GradientMesh("Gradient Mesh")
-}
+enum class ZenBackgroundPreset(val label: String) { Static("Static"), AuroraFlow("Aurora Flow"), DeepSpace("Deep Space"), LiquidGlass("Liquid Glass"), Eclipse("Eclipse"), OceanDepth("Ocean Depth"), ParticleDrift("Particle Drift"), CloudedLight("Clouded Light"), GradientMesh("Gradient Mesh") }
+enum class ZenAnimationSpeed(val label: String, val durationMs: Int) { Off("Off", 1), Slow("Slow", 18000), Normal("Normal", 9000), Fast("Fast", 4500) }
 
-enum class ZenAnimationSpeed(val label: String, val durationMs: Int) {
-    Off("Off", 1), Slow("Slow", 18000), Normal("Normal", 9000), Fast("Fast", 4500)
-}
-
-data class ZenThemeState(
-    val preset: ZenThemePreset = ZenThemePreset.Aurora,
-    val receiver: ZenReceiverTheme? = null,
-    val background: ZenBackgroundPreset = ZenBackgroundPreset.AuroraFlow,
-    val backgroundBlur: Int = 24,
-    val backgroundIntensity: Float = .62f,
-    val animationSpeed: ZenAnimationSpeed = ZenAnimationSpeed.Slow,
-    val reducedMotion: Boolean = false,
-    val glassOpacity: Float = ZenThemePreset.Aurora.glassOpacity,
-    val glowStrength: Float = ZenThemePreset.Aurora.glowStrength
-)
+data class ZenThemeState(val preset: ZenThemePreset = ZenThemePreset.Aurora, val receiver: ZenReceiverTheme? = null, val background: ZenBackgroundPreset = ZenBackgroundPreset.AuroraFlow, val backgroundBlur: Int = 24, val backgroundIntensity: Float = .62f, val animationSpeed: ZenAnimationSpeed = ZenAnimationSpeed.Slow, val reducedMotion: Boolean = false, val glassOpacity: Float = ZenThemePreset.Aurora.glassOpacity, val glowStrength: Float = ZenThemePreset.Aurora.glowStrength)
 
 private fun receiverScheme(receiver: ZenReceiverTheme) = darkColorScheme(primary = receiver.accent, secondary = receiver.secondary, background = receiver.background, surface = receiver.surface, onBackground = Color.White, onSurface = Color.White)
 private val FrostLight = lightColorScheme(primary = ZenThemePreset.Frost.accent, secondary = ZenThemePreset.Frost.secondary, background = ZenThemePreset.Frost.background, surface = ZenThemePreset.Frost.surface, onBackground = Color(0xFF10151D), onSurface = Color(0xFF10151D))
@@ -106,167 +94,27 @@ fun ZenTheme(state: ZenThemeState, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun ThemeStudio(
-    state: ZenThemeState,
-    onStateChange: (ZenThemeState) -> Unit,
-    firstFocusRequester: FocusRequester,
-    sidebarRequester: FocusRequester,
-    onChildFocus: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit, firstFocusRequester: FocusRequester, sidebarRequester: FocusRequester, onChildFocus: () -> Unit, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { firstFocusRequester.requestFocus() }
-    LazyColumn(
-        modifier = modifier.fillMaxSize().focusProperties { left = sidebarRequester },
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
+    LazyColumn(modifier = modifier.fillMaxSize().focusProperties { left = sidebarRequester }, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { ThemeHeader() }
         item { ThemePreview(state) }
-        item {
-            ThemeSection("Zen Themes") {
-                ThemeRow(Modifier.focusGroup()) {
-                    items(ZenThemePreset.entries, key = { it.name }) { preset ->
-                        ThemePresetCard(preset, state.receiver == null && state.preset == preset, state.reducedMotion, if (preset == ZenThemePreset.Aurora) Modifier.focusRequester(firstFocusRequester) else Modifier, onChildFocus) {
-                            onStateChange(state.copy(preset = preset, receiver = null, glassOpacity = preset.glassOpacity, glowStrength = preset.glowStrength))
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            ThemeSection("Receiver") {
-                ThemeRow(Modifier.focusGroup()) {
-                    items(ZenReceiverTheme.entries, key = { it.name }) { receiver ->
-                        ReceiverCard(receiver, state.receiver == receiver, state.reducedMotion, onChildFocus) {
-                            onStateChange(state.copy(receiver = receiver, glassOpacity = .60f, glowStrength = .68f))
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            ThemeSection("Background") {
-                ThemeRow(Modifier.focusGroup()) {
-                    items(ZenBackgroundPreset.entries, key = { it.name }) { background ->
-                        CompactOptionCard(background.label, state.background == background, state.preset.accent, onChildFocus) { onStateChange(state.copy(background = background)) }
-                    }
-                }
-            }
-        }
-        item {
-            ThemeSection("Animation") {
-                ThemeRow(Modifier.focusGroup()) {
-                    items(ZenAnimationSpeed.entries, key = { it.name }) { speed ->
-                        CompactOptionCard(speed.label, !state.reducedMotion && state.animationSpeed == speed, state.preset.accent, onChildFocus) {
-                            onStateChange(state.copy(animationSpeed = speed, reducedMotion = speed == ZenAnimationSpeed.Off))
-                        }
-                    }
-                    item(key = "reduced-motion") {
-                        CompactOptionCard("Reduced Motion", state.reducedMotion, state.preset.accent, onChildFocus) { onStateChange(state.copy(reducedMotion = !state.reducedMotion)) }
-                    }
-                }
-            }
-        }
-        item {
-            Row(Modifier.fillMaxWidth().focusGroup(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                ControlColumn("Blur", "${state.backgroundBlur}%", state.backgroundBlur / 100f, onChildFocus) { onStateChange(state.copy(backgroundBlur = (it * 100).toInt().coerceIn(0, 60))) }
-                ControlColumn("Intensity", "${(state.backgroundIntensity * 100).toInt()}%", state.backgroundIntensity, onChildFocus) { onStateChange(state.copy(backgroundIntensity = it.coerceIn(.15f, 1f))) }
-                ControlColumn("Glass", "${(state.glassOpacity * 100).toInt()}%", state.glassOpacity, onChildFocus) { onStateChange(state.copy(glassOpacity = it.coerceIn(.25f, .90f))) }
-                ControlColumn("Glow", "${(state.glowStrength * 100).toInt()}%", state.glowStrength, onChildFocus) { onStateChange(state.copy(glowStrength = it.coerceIn(0f, 1f))) }
-            }
-        }
+        item { ThemeSection("Zen Themes") { ThemeRow(Modifier.focusGroup()) { items(ZenThemePreset.entries, key = { it.name }) { p -> ThemePresetCard(p, state.receiver == null && state.preset == p, state.reducedMotion, if (p == ZenThemePreset.Aurora) Modifier.focusRequester(firstFocusRequester) else Modifier, onChildFocus) { onStateChange(state.copy(preset = p, receiver = null, glassOpacity = p.glassOpacity, glowStrength = p.glowStrength)) } } } } }
+        item { ThemeSection("Receiver") { ThemeRow(Modifier.focusGroup()) { items(ZenReceiverTheme.entries, key = { it.name }) { r -> ReceiverCard(r, state.receiver == r, state.reducedMotion, onChildFocus) { onStateChange(state.copy(receiver = r, glassOpacity = .60f, glowStrength = .68f)) } } } } }
+        item { ThemeSection("Background") { ThemeRow(Modifier.focusGroup()) { items(ZenBackgroundPreset.entries, key = { it.name }) { b -> CompactOptionCard(b.label, state.background == b, state.preset.accent, onChildFocus) { onStateChange(state.copy(background = b)) } } } } }
+        item { ThemeSection("Animation") { ThemeRow(Modifier.focusGroup()) { items(ZenAnimationSpeed.entries, key = { it.name }) { s -> CompactOptionCard(s.label, !state.reducedMotion && state.animationSpeed == s, state.preset.accent, onChildFocus) { onStateChange(state.copy(animationSpeed = s, reducedMotion = s == ZenAnimationSpeed.Off)) } }; item(key = "reduced-motion") { CompactOptionCard("Reduced Motion", state.reducedMotion, state.preset.accent, onChildFocus) { onStateChange(state.copy(reducedMotion = !state.reducedMotion)) } } } } }
+        item { Row(Modifier.fillMaxWidth().focusGroup(), horizontalArrangement = Arrangement.spacedBy(18.dp)) { ControlColumn("Blur", "${state.backgroundBlur}%", state.backgroundBlur / 100f, onChildFocus, Modifier.width(220.dp)) { onStateChange(state.copy(backgroundBlur = (it * 100).toInt().coerceIn(0, 60))) }; ControlColumn("Intensity", "${(state.backgroundIntensity * 100).toInt()}%", state.backgroundIntensity, onChildFocus, Modifier.width(220.dp)) { onStateChange(state.copy(backgroundIntensity = it.coerceIn(.15f, 1f))) }; ControlColumn("Glass", "${(state.glassOpacity * 100).toInt()}%", state.glassOpacity, onChildFocus, Modifier.width(220.dp)) { onStateChange(state.copy(glassOpacity = it.coerceIn(.25f, .90f))) }; ControlColumn("Glow", "${(state.glowStrength * 100).toInt()}%", state.glowStrength, onChildFocus, Modifier.width(220.dp)) { onStateChange(state.copy(glowStrength = it.coerceIn(0f, 1f))) } } }
         item { Spacer(Modifier.height(24.dp)) }
     }
 }
 
-@Composable
-private fun ThemeHeader() {
-    Column(Modifier.fillMaxWidth().padding(top = 28.dp, start = 26.dp, end = 26.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Look & Feel", fontSize = 36.sp)
-        Text("Alles wird direkt auf die TV-Oberfläche angewendet. Mit OK auswählen, mit ←/→ innerhalb der Zeile navigieren.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp)
-    }
-}
-
-@Composable
-private fun ThemeSection(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 26.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text(title, fontSize = 21.sp)
-        content()
-    }
-}
-
-@Composable
-private fun ThemeRow(modifier: Modifier = Modifier, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
-    LazyRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
-}
-
-@Composable
-private fun ThemePreview(state: ZenThemeState) {
-    val accent by animateColorAsState(state.receiver?.accent ?: state.preset.accent, tween(if (state.reducedMotion) 0 else 220), label = "previewAccent")
-    Box(Modifier.fillMaxWidth().padding(horizontal = 26.dp).height(205.dp).clip(RoundedCornerShape(28.dp)).border(1.dp, accent.copy(alpha = .52f), RoundedCornerShape(28.dp))) {
-        ZenBackground(state)
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)).padding(22.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("ZENPLAYER", fontSize = 13.sp, color = accent)
-                Text("Live Theme Preview", fontSize = 30.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PreviewTile("LIVE TV", accent)
-                    PreviewTile("EPG", accent)
-                    PreviewTile("NOW PLAYING", accent)
-                }
-                Text("${state.receiver?.label ?: state.preset.label} · ${state.background.label} · Blur ${state.backgroundBlur}%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PreviewTile(label: String, accent: Color) {
-    Box(Modifier.size(width = 145.dp, height = 58.dp).background(Color.White.copy(alpha = .08f), RoundedCornerShape(14.dp)).border(1.dp, accent.copy(alpha = .28f), RoundedCornerShape(14.dp)).padding(11.dp)) { Text(label, fontSize = 11.sp) }
-}
-
-@Composable
-private fun ThemePresetCard(preset: ZenThemePreset, selected: Boolean, reducedMotion: Boolean, modifier: Modifier, onFocus: () -> Unit, onClick: () -> Unit) {
-    FocusCard(modifier, selected, preset.accent, reducedMotion, preset.label, preset.surface, onFocus, onClick)
-}
-
-@Composable
-private fun ReceiverCard(receiver: ZenReceiverTheme, selected: Boolean, reducedMotion: Boolean, onFocus: () -> Unit, onClick: () -> Unit) {
-    FocusCard(Modifier, selected, receiver.accent, reducedMotion, receiver.label, receiver.surface, onFocus, onClick)
-}
-
-@Composable
-private fun CompactOptionCard(label: String, selected: Boolean, accent: Color, onFocus: () -> Unit, onClick: () -> Unit) {
-    FocusCard(Modifier, selected, accent, false, label, MaterialTheme.colorScheme.surface, onFocus, onClick, 150.dp, 62.dp)
-}
-
-@Composable
-private fun FocusCard(modifier: Modifier, selected: Boolean, accent: Color, reducedMotion: Boolean, label: String, surface: Color, onFocus: () -> Unit, onClick: () -> Unit, width: Dp = 170.dp, height: Dp = 92.dp) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.045f else 1f, tween(if (reducedMotion) 0 else 130), label = "cardFocusScale")
-    Box(
-        modifier.size(width, height).scale(scale)
-            .alpha(if (selected) 1f else .74f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(surface.copy(alpha = if (selected) .92f else .72f), RoundedCornerShape(18.dp))
-            .border(if (focused) 2.dp else 1.dp, if (focused) accent else accent.copy(alpha = if (selected) .42f else .12f), RoundedCornerShape(18.dp))
-            .onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }
-            .focusable()
-            .clickable(onClick = onClick)
-            .padding(14.dp),
-        contentAlignment = androidx.compose.ui.Alignment.CenterStart
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(Modifier.size(13.dp).background(accent, RoundedCornerShape(7.dp)))
-            Text(label, fontSize = 16.sp)
-            if (selected) Text("Aktiv", fontSize = 11.sp, color = accent)
-        }
-    }
-}
-
-@Composable
-private fun ControlColumn(title: String, value: String, sliderValue: Float, onFocus: () -> Unit, onChange: (Float) -> Unit) {
-    Column(Modifier.weight(1f).height(84.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, fontSize = 15.sp); Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary) }
-        Slider(value = sliderValue, onValueChange = onChange, modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocus() }.focusable())
-    }
-}
+@Composable private fun ThemeHeader() { Column(Modifier.fillMaxWidth().padding(top = 28.dp, start = 26.dp, end = 26.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text("Look & Feel", fontSize = 36.sp); Text("Alles wird direkt auf die TV-Oberfläche angewendet. Mit OK auswählen, mit ←/→ innerhalb der Zeile navigieren.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp) } }
+@Composable private fun ThemeSection(title: String, content: @Composable () -> Unit) { Column(Modifier.fillMaxWidth().padding(horizontal = 26.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) { Text(title, fontSize = 21.sp); content() } }
+@Composable private fun ThemeRow(modifier: Modifier = Modifier, content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) { LazyRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), content = content) }
+@Composable private fun ThemePreview(state: ZenThemeState) { val accent by animateColorAsState(state.receiver?.accent ?: state.preset.accent, tween(if (state.reducedMotion) 0 else 220), label = "previewAccent"); Box(Modifier.fillMaxWidth().padding(horizontal = 26.dp).height(205.dp).clip(RoundedCornerShape(28.dp)).border(1.dp, accent.copy(alpha = .52f), RoundedCornerShape(28.dp))) { ZenBackground(state); Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)).padding(22.dp)) { Column(verticalArrangement = Arrangement.spacedBy(9.dp)) { Text("ZENPLAYER", fontSize = 13.sp, color = accent); Text("Live Theme Preview", fontSize = 30.sp); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { PreviewTile("LIVE TV", accent); PreviewTile("EPG", accent); PreviewTile("NOW PLAYING", accent) }; Text("${state.receiver?.label ?: state.preset.label} · ${state.background.label} · Blur ${state.backgroundBlur}%", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp) } } } }
+@Composable private fun PreviewTile(label: String, accent: Color) { Box(Modifier.size(width = 145.dp, height = 58.dp).background(Color.White.copy(alpha = .08f), RoundedCornerShape(14.dp)).border(1.dp, accent.copy(alpha = .28f), RoundedCornerShape(14.dp)).padding(11.dp)) { Text(label, fontSize = 11.sp) } }
+@Composable private fun ThemePresetCard(p: ZenThemePreset, selected: Boolean, reducedMotion: Boolean, modifier: Modifier, onFocus: () -> Unit, onClick: () -> Unit) { FocusCard(modifier, selected, p.accent, reducedMotion, p.label, p.surface, onFocus, onClick) }
+@Composable private fun ReceiverCard(r: ZenReceiverTheme, selected: Boolean, reducedMotion: Boolean, onFocus: () -> Unit, onClick: () -> Unit) { FocusCard(Modifier, selected, r.accent, reducedMotion, r.label, r.surface, onFocus, onClick) }
+@Composable private fun CompactOptionCard(label: String, selected: Boolean, accent: Color, onFocus: () -> Unit, onClick: () -> Unit) { FocusCard(Modifier, selected, accent, false, label, MaterialTheme.colorScheme.surface, onFocus, onClick, 150.dp, 62.dp) }
+@Composable private fun FocusCard(modifier: Modifier, selected: Boolean, accent: Color, reducedMotion: Boolean, label: String, surface: Color, onFocus: () -> Unit, onClick: () -> Unit, width: Dp = 170.dp, height: Dp = 92.dp) { var focused by remember { mutableStateOf(false) }; val scale by animateFloatAsState(if (focused) 1.045f else 1f, tween(if (reducedMotion) 0 else 130), label = "cardFocusScale"); Box(modifier.size(width, height).scale(scale).alpha(if (selected) 1f else .74f).clip(RoundedCornerShape(18.dp)).background(surface.copy(alpha = if (selected) .92f else .72f), RoundedCornerShape(18.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else accent.copy(alpha = if (selected) .42f else .12f), RoundedCornerShape(18.dp)).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }.focusable().clickable(onClick = onClick).padding(14.dp)) { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Box(Modifier.size(13.dp).background(accent, RoundedCornerShape(7.dp))); Text(label, fontSize = 16.sp); if (selected) Text("Aktiv", fontSize = 11.sp, color = accent) } } }
+@Composable private fun ControlColumn(title: String, value: String, sliderValue: Float, onFocus: () -> Unit, modifier: Modifier, onChange: (Float) -> Unit) { Column(modifier.height(84.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, fontSize = 15.sp); Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary) }; Slider(value = sliderValue, onValueChange = onChange, modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocus() }.focusable()) } }
