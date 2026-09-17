@@ -45,7 +45,7 @@ enum class ZenThemePreset(
     Aurora("Aurora", Color(0xFF64E8FF), Color(0xFF050A16), Color(0xFF101A2D)),
     Obsidian("Obsidian", Color(0xFFC58CFF), Color(0xFF08060E), Color(0xFF181323)),
     Frost("Frost", Color(0xFF66B8FF), Color(0xFFEAF4FF), Color(0xFFD7E8F7)),
-    Amber("Amber", Color(0xFFFFB84D), Color(0xFF100A04), Color(0xFF24170A)
+    Amber("Amber", Color(0xFFFFB84D), Color(0xFF100A04), Color(0xFF24170A))
 }
 
 data class ZenThemeState(
