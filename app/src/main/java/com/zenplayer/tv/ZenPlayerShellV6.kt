@@ -71,6 +71,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var homeBackReset by remember { mutableStateOf(false) }
     var focusRestoreRequest by remember { mutableIntStateOf(0) }
     var lastSidebarId by remember { mutableStateOf("home") }
+    var contentFocused by remember { mutableStateOf(false) }
     val homeFocusRequester = remember { FocusRequester() }
     val channels = if (demo) DemoData.channels() else store.channels
 
@@ -78,9 +79,14 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
         when {
             showExitDialog -> showExitDialog = false
             playerIndex >= 0 -> playerIndex = -1
-            sources -> { sources = false; page = sourceReturn; homeBackReset = false }
+            sources -> { sources = false; page = sourceReturn; homeBackReset = false; contentFocused = false }
+            contentFocused -> {
+                contentFocused = false
+                focusRestoreRequest++
+            }
             page != "home" -> {
                 page = "home"
+                lastSidebarId = "home"
                 homeBackReset = false
                 focusRestoreRequest++
             }
@@ -128,6 +134,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
             ) {
                 V6Sidebar(page, lastSidebarId, accent, homeFocusRequester, focusRestoreRequest) { selected ->
                     lastSidebarId = selected
+                    contentFocused = true
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
