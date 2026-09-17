@@ -159,11 +159,6 @@ private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequ
         homeFocusRequester.requestFocus()
     }
 
-    LaunchedEffect(page) {
-        withFrameNanos { }
-        requesters[ids.indexOf(page).coerceAtLeast(0)].requestFocus()
-    }
-
     Column(
         Modifier
             .width(82.dp)
