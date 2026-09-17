@@ -1,6 +1,5 @@
 package com.zenplayer.tv
 
-import android.app.KeyguardManager
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -32,7 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         ZenLogger.event(
             "KEY",
-            "action=${KeyEvent.actionToString(event.action)} key=${KeyEvent.keyCode} name=${KeyEvent.keyCodeName()} repeat=${event.repeatCount} device=${event.deviceId}"
+            "action=${event.action} key=${event.keyCode} name=${event.keyCode.toZenKeyName()} repeat=${event.repeatCount} device=${event.deviceId}"
         )
         return super.dispatchKeyEvent(event)
     }
@@ -52,8 +51,8 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
-    private fun KeyEvent.keyCodeName(): String =
-        when (keyCode) {
+    private fun Int.toZenKeyName(): String =
+        when (this) {
             KeyEvent.KEYCODE_DPAD_UP -> "DPAD_UP"
             KeyEvent.KEYCODE_DPAD_DOWN -> "DPAD_DOWN"
             KeyEvent.KEYCODE_DPAD_LEFT -> "DPAD_LEFT"
@@ -66,6 +65,6 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_HOME -> "HOME"
             KeyEvent.KEYCODE_VOLUME_UP -> "VOLUME_UP"
             KeyEvent.KEYCODE_VOLUME_DOWN -> "VOLUME_DOWN"
-            else -> KeyEvent.keyCodeToString(keyCode)
+            else -> "KEYCODE_$this"
         }
 }
