@@ -22,14 +22,16 @@ enum class NavigationAction {
     CloseSources,
     OpenPlayer,
     ClosePlayer,
+    FocusSidebar,
 }
 
 fun reduceNavigation(state: NavigationState, action: NavigationAction, page: String? = null): NavigationState = when (action) {
     NavigationAction.DismissExitDialog -> state.copy(showExitDialog = false)
-    NavigationAction.OpenPage -> {
-        val next = page ?: state.page
-        state.copy(page = next, homeBackReset = if (next == state.page) state.homeBackReset else false, lastSidebarId = next)
-    }
+    NavigationAction.OpenPage -> state.copy(
+        page = page ?: state.page,
+        homeBackReset = if ((page ?: state.page) == state.page) state.homeBackReset else false,
+    )
+    NavigationAction.FocusSidebar -> state.copy(lastSidebarId = page ?: state.lastSidebarId)
     NavigationAction.OpenSources -> state.copy(sourcesOpen = true, sourceReturn = state.page, homeBackReset = false)
     NavigationAction.CloseSources -> state.copy(sourcesOpen = false, page = state.sourceReturn, homeBackReset = false)
     NavigationAction.OpenPlayer -> state.copy(playerOpen = true)
