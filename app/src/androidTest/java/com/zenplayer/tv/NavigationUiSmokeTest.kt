@@ -1,6 +1,5 @@
 package com.zenplayer.tv
 
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -35,30 +34,38 @@ class NavigationUiSmokeTest {
         val epg = composeRule.onNodeWithContentDescription("EPG")
         val search = composeRule.onNodeWithContentDescription("Suche")
 
+        composeRule.waitForIdle()
         home.assertIsDisplayed()
         home.assertIsFocused()
 
         home.performKeyInput { pressKey(Key.DirectionDown) }
+        composeRule.waitForIdle()
         epg.assertIsFocused()
 
         epg.performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("EPG").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
         home.assertIsFocused()
 
         home.performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
         }
+        composeRule.waitForIdle()
         search.assertIsFocused()
         search.performKeyInput { pressKey(Key.DirectionCenter) }
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("Suche").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
         home.assertIsFocused()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("ZenPlayer beenden?").assertIsDisplayed()
     }
 }
