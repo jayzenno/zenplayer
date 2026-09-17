@@ -2,10 +2,12 @@ package com.zenplayer.tv
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onParent
@@ -83,7 +85,7 @@ class NavigationUiSmokeTest {
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
         home.assertIsFocused()
-        composeRule.onNodeWithText("ZenPlayer beenden?").assertDoesNotExist()
+        composeRule.onAllNodesWithText("ZenPlayer beenden?").assertCountEquals(0)
 
         // Second Back on Home opens the exit dialog.
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
