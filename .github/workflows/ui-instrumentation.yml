@@ -1,0 +1,67 @@
+name: UI Instrumentation (non-gating)
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-instrumentation:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Enable KVM group permissions when available
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            sudo chmod 666 /dev/kvm || true
+          else
+            echo "KVM device is not available on this runner; emulator will use software acceleration."
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Run Compose instrumentation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          cores: 4
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim -no-metrics
+          disable-animations: true
+          script: |
+            set +e
+            gradle connectedDebugAndroidTest --stacktrace
+            test_status=$?
+            mkdir -p ui-diagnostics
+            adb -s emulator-5554 logcat -d > ui-diagnostics/logcat.txt || true
+            cp -R app/build/reports/androidTests/connected ui-diagnostics/android-test-report || true
+            cp -R app/build/outputs/androidTest-results/connected ui-diagnostics/android-test-results || true
+            printf 'Instrumentation exit code: %s\n' "$test_status" > ui-diagnostics/exit-code.txt
+            exit "$test_status"
+
+      - name: Upload UI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenplayer-ui-diagnostics
+          path: ui-diagnostics
+          if-no-files-found: warn

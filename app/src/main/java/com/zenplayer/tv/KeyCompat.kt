@@ -17,4 +17,4 @@ val KeyEvent.type: KeyEventType
     }
 
 val KeyEvent.key: Key
-    get() = Key(nativeKeyEvent.keyCode.toLong())
+    get() = Key(nativeKeyEvent.keyCode)
