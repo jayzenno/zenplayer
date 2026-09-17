@@ -60,6 +60,7 @@ fun ZenPlayerApp() {
 
     val sidebarRequester = remember { FocusRequester() }
     val contentRequester = remember { FocusRequester() }
+    val studioRequester = remember { FocusRequester() }
 
     BackHandler(enabled = contentHasFocus == 1) {
         sidebarRequester.requestFocus()
@@ -103,13 +104,21 @@ fun ZenPlayerApp() {
                                 )
                                 .focusProperties {
                                     if (index == selected) {
-                                        right = contentRequester
+                                        right = if (index == nav.lastIndex) {
+                                            studioRequester
+                                        } else {
+                                            contentRequester
+                                        }
                                     }
                                 },
                             onFocus = { contentHasFocus = 0 },
                             onClick = {
                                 selected = index
-                                contentRequester.requestFocus()
+                                if (index == nav.lastIndex) {
+                                    studioRequester.requestFocus()
+                                } else {
+                                    contentRequester.requestFocus()
+                                }
                             }
                         )
                     }
@@ -119,16 +128,10 @@ fun ZenPlayerApp() {
                     ThemeStudio(
                         state = themeState,
                         onStateChange = { themeState = it },
+                        firstFocusRequester = studioRequester,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .focusRequester(contentRequester)
-                            .focusProperties {
-                                left = androidx.compose.ui.focus.FocusRequester.Cancel
-                            }
-                            .onFocusChanged {
-                                contentHasFocus = if (it.hasFocus) 1 else 0
-                            }
                     )
                 } else {
                     ContentPane(
