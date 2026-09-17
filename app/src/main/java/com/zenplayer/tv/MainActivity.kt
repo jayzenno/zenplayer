@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                ZenPlayerShellStable(SettingsStore(this@MainActivity))
             }
         }
     }
@@ -51,20 +51,19 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
-    private fun Int.toZenKeyName(): String =
-        when (this) {
-            KeyEvent.KEYCODE_DPAD_UP -> "DPAD_UP"
-            KeyEvent.KEYCODE_DPAD_DOWN -> "DPAD_DOWN"
-            KeyEvent.KEYCODE_DPAD_LEFT -> "DPAD_LEFT"
-            KeyEvent.KEYCODE_DPAD_RIGHT -> "DPAD_RIGHT"
-            KeyEvent.KEYCODE_DPAD_CENTER -> "DPAD_CENTER"
-            KeyEvent.KEYCODE_ENTER -> "ENTER"
-            KeyEvent.KEYCODE_BACK -> "BACK"
-            KeyEvent.KEYCODE_ESCAPE -> "ESCAPE"
-            KeyEvent.KEYCODE_MENU -> "MENU"
-            KeyEvent.KEYCODE_HOME -> "HOME"
-            KeyEvent.KEYCODE_VOLUME_UP -> "VOLUME_UP"
-            KeyEvent.KEYCODE_VOLUME_DOWN -> "VOLUME_DOWN"
-            else -> "KEYCODE_$this"
-        }
+    private fun Int.toZenKeyName(): String = when (this) {
+        KeyEvent.KEYCODE_DPAD_UP -> "DPAD_UP"
+        KeyEvent.KEYCODE_DPAD_DOWN -> "DPAD_DOWN"
+        KeyEvent.KEYCODE_DPAD_LEFT -> "DPAD_LEFT"
+        KeyEvent.KEYCODE_DPAD_RIGHT -> "DPAD_RIGHT"
+        KeyEvent.KEYCODE_DPAD_CENTER -> "DPAD_CENTER"
+        KeyEvent.KEYCODE_ENTER -> "ENTER"
+        KeyEvent.KEYCODE_BACK -> "BACK"
+        KeyEvent.KEYCODE_ESCAPE -> "ESCAPE"
+        KeyEvent.KEYCODE_MENU -> "MENU"
+        KeyEvent.KEYCODE_HOME -> "HOME"
+        KeyEvent.KEYCODE_VOLUME_UP -> "VOLUME_UP"
+        KeyEvent.KEYCODE_VOLUME_DOWN -> "VOLUME_DOWN"
+        else -> "KEYCODE_$this"
+    }
 }
