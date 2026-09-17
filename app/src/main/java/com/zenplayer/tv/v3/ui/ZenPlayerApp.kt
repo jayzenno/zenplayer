@@ -31,8 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,17 +66,9 @@ fun ZenPlayerApp() {
                 Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(nav[selected].label, color = Color.White, fontSize = 38.sp)
-                        Text(
-                            "ZenPlayer 3.0 · Clean TV-first foundation",
-                            color = Color(0xFF9CA6BA),
-                            fontSize = 16.sp
-                        )
+                        Text("ZenPlayer 3.0 · Clean TV-first foundation", color = Color(0xFF9CA6BA), fontSize = 16.sp)
                         Spacer(Modifier.width(1.dp))
-                        Text(
-                            "Navigation, Datenquellen, EPG und Player werden jetzt einzeln aufgebaut.",
-                            color = Color(0xFF69748A),
-                            fontSize = 14.sp
-                        )
+                        Text("Navigation, Datenquellen, EPG und Player werden jetzt einzeln aufgebaut.", color = Color(0xFF69748A), fontSize = 14.sp)
                     }
                 }
             }
