@@ -10,8 +10,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ZenLogger.init(this)
         ZenLogger.info("APP", "ZenPlayer 2 foundation")
-        setContent {
-            ZenPlayerShell()
-        }
+        val settings = SettingsStore(this)
+        setContent { ZenPlayerShell(settings) }
     }
 }
