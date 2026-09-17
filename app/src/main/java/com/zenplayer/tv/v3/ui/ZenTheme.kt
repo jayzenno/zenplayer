@@ -100,6 +100,7 @@ fun ThemeStudio(
     state: ZenThemeState,
     onStateChange: (ZenThemeState) -> Unit,
     firstFocusRequester: FocusRequester,
+    onChildFocus: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -119,11 +120,8 @@ fun ThemeStudio(
                     preset = preset,
                     selected = state.preset == preset,
                     reducedMotion = state.reducedMotion,
-                    modifier = if (index == 0) {
-                        Modifier.focusRequester(firstFocusRequester)
-                    } else {
-                        Modifier
-                    }
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier,
+                    onFocus = onChildFocus
                 ) {
                     onStateChange(state.copy(preset = preset))
                 }
@@ -135,6 +133,7 @@ fun ThemeStudio(
                 value = if (state.reducedMotion) "An" else "Aus",
                 selected = state.reducedMotion,
                 accent = state.preset.accent,
+                onFocus = onChildFocus,
                 onClick = { onStateChange(state.copy(reducedMotion = !state.reducedMotion)) }
             )
             ThemeOptionCard(
@@ -142,6 +141,7 @@ fun ThemeStudio(
                 value = if (state.wallpaperEnabled) "An" else "Aus",
                 selected = state.wallpaperEnabled,
                 accent = state.preset.accent,
+                onFocus = onChildFocus,
                 onClick = { onStateChange(state.copy(wallpaperEnabled = !state.wallpaperEnabled)) }
             )
         }
@@ -164,10 +164,7 @@ private fun ThemePreview(state: ZenThemeState) {
         Modifier
             .fillMaxWidth()
             .height(220.dp)
-            .background(
-                Brush.linearGradient(listOf(background, state.preset.surface)),
-                RoundedCornerShape(28.dp)
-            )
+            .background(Brush.linearGradient(listOf(background, state.preset.surface)), RoundedCornerShape(28.dp))
             .border(1.dp, accent.copy(alpha = .35f), RoundedCornerShape(28.dp))
             .padding(28.dp)
     ) {
@@ -186,6 +183,7 @@ private fun ThemePresetCard(
     selected: Boolean,
     reducedMotion: Boolean,
     modifier: Modifier = Modifier,
+    onFocus: () -> Unit,
     onClick: () -> Unit
 ) {
     var focused by rememberSaveable { mutableStateOf(false) }
@@ -205,7 +203,10 @@ private fun ThemePresetCard(
                 if (focused || selected) preset.accent else Color.White.copy(alpha = .08f),
                 RoundedCornerShape(20.dp)
             )
-            .onFocusChanged { focused = it.hasFocus }
+            .onFocusChanged {
+                focused = it.hasFocus
+                if (it.hasFocus) onFocus()
+            }
             .focusable()
             .clickable(onClick = onClick)
             .padding(18.dp)
@@ -228,22 +229,23 @@ private fun ThemeOptionCard(
     value: String,
     selected: Boolean,
     accent: Color,
+    onFocus: () -> Unit,
     onClick: () -> Unit
 ) {
     var focused by rememberSaveable { mutableStateOf(false) }
     Box(
         Modifier
             .size(width = 240.dp, height = 84.dp)
-            .background(
-                if (selected) accent.copy(alpha = .12f) else MaterialTheme.colorScheme.surface,
-                RoundedCornerShape(18.dp)
-            )
+            .background(if (selected) accent.copy(alpha = .12f) else MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
             .border(
                 if (focused || selected) 2.dp else 1.dp,
                 if (focused || selected) accent else MaterialTheme.colorScheme.outline.copy(alpha = .35f),
                 RoundedCornerShape(18.dp)
             )
-            .onFocusChanged { focused = it.hasFocus }
+            .onFocusChanged {
+                focused = it.hasFocus
+                if (it.hasFocus) onFocus()
+            }
             .focusable()
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 14.dp)
