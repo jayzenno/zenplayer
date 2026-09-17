@@ -69,6 +69,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var playerIndex by remember { mutableIntStateOf(-1) }
     var showExitDialog by remember { mutableStateOf(false) }
     var homeBackReset by remember { mutableStateOf(false) }
+    var focusRestoreRequest by remember { mutableIntStateOf(0) }
     val homeFocusRequester = remember { FocusRequester() }
     val channels = if (demo) DemoData.channels() else store.channels
 
@@ -80,11 +81,11 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
             page != "home" -> {
                 page = "home"
                 homeBackReset = false
-                homeFocusRequester.requestFocus()
+                focusRestoreRequest++
             }
             !homeBackReset -> {
                 homeBackReset = true
-                homeFocusRequester.requestFocus()
+                focusRestoreRequest++
             }
             else -> showExitDialog = true
         }
@@ -123,7 +124,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(page, accent, homeFocusRequester) { selected ->
+                V6Sidebar(page, accent, homeFocusRequester, focusRestoreRequest) { selected ->
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
@@ -148,13 +149,13 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
-    LaunchedEffect(homeFocusRequester) {
+    LaunchedEffect(homeFocusRequester, focusRestoreRequest) {
         withFrameNanos { }
         homeFocusRequester.requestFocus()
     }
