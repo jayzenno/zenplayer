@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -98,6 +99,7 @@ fun ZenTheme(state: ZenThemeState, content: @Composable () -> Unit) {
 fun ThemeStudio(
     state: ZenThemeState,
     onStateChange: (ZenThemeState) -> Unit,
+    firstFocusRequester: FocusRequester,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -112,11 +114,16 @@ fun ThemeStudio(
         ThemePreview(state)
         Text("Themes", fontSize = 22.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            ZenThemePreset.entries.forEach { preset ->
+            ZenThemePreset.entries.forEachIndexed { index, preset ->
                 ThemePresetCard(
                     preset = preset,
                     selected = state.preset == preset,
-                    reducedMotion = state.reducedMotion
+                    reducedMotion = state.reducedMotion,
+                    modifier = if (index == 0) {
+                        Modifier.focusRequester(firstFocusRequester)
+                    } else {
+                        Modifier
+                    }
                 ) {
                     onStateChange(state.copy(preset = preset))
                 }
@@ -178,6 +185,7 @@ private fun ThemePresetCard(
     preset: ZenThemePreset,
     selected: Boolean,
     reducedMotion: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     var focused by rememberSaveable { mutableStateOf(false) }
@@ -187,7 +195,7 @@ private fun ThemePresetCard(
         label = "themeFocusScale"
     )
     Box(
-        Modifier
+        modifier
             .size(width = 170.dp, height = 104.dp)
             .scale(scale)
             .alpha(if (selected) 1f else .72f)
