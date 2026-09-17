@@ -20,9 +20,9 @@ import org.junit.runner.RunWith
  * Emulator-backed regression test for the real ZenPlayer shell.
  *
  * This deliberately drives the production MainActivity instead of a test-only
- * copy of the navigation UI. It verifies the TV contract that previously
- * regressed: D-pad focus, OK selection, blocked Left navigation from content,
- * Back to the sidebar/home and the two-step exit dialog.
+ * copy of the navigation UI. It verifies the TV contract that previously regressed:
+ * D-pad focus, OK selection, blocked Left navigation from content, Back to the
+ * same sidebar item, navigation back to Home, and the two-step exit dialog.
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationUiSmokeTest {
@@ -49,7 +49,7 @@ class NavigationUiSmokeTest {
         composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
 
         // Left from content is deliberately blocked; focus must stay out of
-        // the sidebar. Back is the explicit way back to the sidebar/home.
+        // the sidebar. Back is the explicit way back to the same sidebar item.
         epg.performKeyInput { pressKey(Key.DirectionLeft) }
         composeRule.waitForIdle()
         home.assertIsNotFocused()
@@ -57,9 +57,9 @@ class NavigationUiSmokeTest {
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
-        home.assertIsFocused()
+        epg.assertIsFocused()
 
-        home.performKeyInput {
+        epg.performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
         }
@@ -69,6 +69,12 @@ class NavigationUiSmokeTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Fokus öffnet nichts · erst OK startet die Eingabe").assertIsDisplayed()
 
+        // Back from Search content restores Search in the sidebar first.
+        composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
+        search.assertIsFocused()
+
+        // A second Back from the Search sidebar returns to Home.
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
         home.assertIsFocused()
@@ -76,6 +82,8 @@ class NavigationUiSmokeTest {
         // First Back on Home arms the two-step exit flow.
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
+        home.assertIsFocused()
+        composeRule.onNodeWithText("ZenPlayer beenden?").assertDoesNotExist()
 
         // Second Back on Home opens the exit dialog.
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
