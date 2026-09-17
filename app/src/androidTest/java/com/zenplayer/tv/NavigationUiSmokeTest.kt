@@ -2,6 +2,7 @@ package com.zenplayer.tv
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -20,8 +21,8 @@ import org.junit.runner.RunWith
  *
  * This deliberately drives the production MainActivity instead of a test-only
  * copy of the navigation UI. It verifies the TV contract that previously
- * regressed: D-pad focus, OK selection, Back to home, focus restoration and
- * the two-step exit dialog.
+ * regressed: D-pad focus, OK selection, blocked Left navigation from content,
+ * Back to the sidebar/home and the two-step exit dialog.
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationUiSmokeTest {
@@ -46,6 +47,13 @@ class NavigationUiSmokeTest {
         epg.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
+
+        // Left from content is deliberately blocked; focus must not jump back
+        // into the sidebar. The content remains active until Back is pressed.
+        epg.performKeyInput { pressKey(Key.DirectionLeft) }
+        composeRule.waitForIdle()
+        home.assertIsDisplayed()
+        home.assertIsFocused()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
