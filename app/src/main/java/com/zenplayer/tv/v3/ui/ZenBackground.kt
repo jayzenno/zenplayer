@@ -21,18 +21,15 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ZenBackground(state: ZenThemeState, modifier: Modifier = Modifier) {
-    val background = state.preset.background
-    val accent = state.preset.accent
-    val secondary = state.preset.secondary
+    val background = state.receiver?.background ?: state.preset.background
+    val accent = state.receiver?.accent ?: state.preset.accent
+    val secondary = state.receiver?.secondary ?: state.preset.secondary
     val motion = if (state.reducedMotion || state.animationSpeed == ZenAnimationSpeed.Off) 0 else state.animationSpeed.durationMs
     val transition = rememberInfiniteTransition(label = "zenBackground")
     val phase by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(motion.coerceAtLeast(1), easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = infiniteRepeatable(tween(motion.coerceAtLeast(1), easing = LinearEasing), RepeatMode.Reverse),
         label = "backgroundPhase"
     )
     val animatedPhase = if (motion == 0) 0.5f else phase
@@ -50,6 +47,16 @@ fun ZenBackground(state: ZenThemeState, modifier: Modifier = Modifier) {
             ZenBackgroundPreset.CloudedLight -> CloudedLightBackground(background, accent, secondary, animatedPhase, intensity)
             ZenBackgroundPreset.GradientMesh -> GradientMeshBackground(background, accent, secondary, animatedPhase, intensity)
         }
+    }
+    if (state.glowStrength > 0f) {
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.radialGradient(
+                    colors = listOf(accent.copy(alpha = .10f * state.glowStrength), Color.Transparent),
+                    radius = 900f
+                )
+            )
+        )
     }
 }
 
