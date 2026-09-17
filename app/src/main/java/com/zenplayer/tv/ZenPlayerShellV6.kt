@@ -70,6 +70,7 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var showExitDialog by remember { mutableStateOf(false) }
     var homeBackReset by remember { mutableStateOf(false) }
     var focusRestoreRequest by remember { mutableIntStateOf(0) }
+    var lastSidebarId by remember { mutableStateOf("home") }
     val homeFocusRequester = remember { FocusRequester() }
     val channels = if (demo) DemoData.channels() else store.channels
 
@@ -124,7 +125,8 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(page, accent, homeFocusRequester, focusRestoreRequest) { selected ->
+                V6Sidebar(page, lastSidebarId, accent, homeFocusRequester, focusRestoreRequest) { selected ->
+                    lastSidebarId = selected
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
@@ -149,15 +151,17 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, lastSidebarId: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
-    LaunchedEffect(homeFocusRequester, focusRestoreRequest) {
+    LaunchedEffect(homeFocusRequester, focusRestoreRequest, lastSidebarId) {
         withFrameNanos { }
-        homeFocusRequester.requestFocus()
+        val index = ids.indexOf(lastSidebarId).takeIf { it >= 0 } ?: 0
+        val requester = if (index == 0) homeFocusRequester else requesters[index]
+        requester.requestFocus()
     }
 
     Column(
@@ -294,71 +298,27 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
     var pass by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf("") }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) scope.launch { status = "Playlist wird eingelesen…"; runCatching { store.importPlaylistFromUri(uri) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht gelesen werden" } } }
-    BackHandler(onBack = onBack)
     Column(Modifier.fillMaxSize()) {
-        Text("Quelle hinzufügen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text("D-Pad navigieren · OK startet die Eingabe · Zurück geht zurück", color = V6Muted, fontSize = 13.sp)
+        Text("Quellen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
+        Text("M3U, URL oder Xtream", color = V6Muted, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
-        LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-            item { V6SourceCard("M3U / M3U8", accent, Modifier.fillMaxWidth()) {
-                V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
-                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
-                V6SourceButton("URL importieren", accent) { scope.launch { status = "URL wird geladen…"; runCatching { store.importPlaylistFromUrl(url.trim()) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" } } }
-            } }
-            item { V6SourceCard("Xtream Codes", accent, Modifier.fillMaxWidth()) {
-                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
-                V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
-                V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
-                V6SourceButton("Xtream verbinden", accent) { scope.launch { status = "Xtream wird verbunden…"; val result = XtreamClient(server.trim(), user.trim(), pass).load(); if (result.isSuccess) { val list = result.getOrNull().orEmpty(); store.importXtream(list); status = "${list.size} Sender importiert"; onDone() } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen" } }
-            } }
-            item { Text(status, color = accent, fontSize = 12.sp); V6SourceButton("Zurück", accent, onBack) }
+        OutlinedTextField(url, { url = it }, label = { Text("M3U URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(server, { server = it }, label = { Text("Xtream Server") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(user, { user = it }, label = { Text("Benutzer") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(pass, { pass = it }, label = { Text("Passwort") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(onClick = onBack) { Text("Zurück") }
+            TextButton(onClick = {
+                scope.launch {
+                    status = runCatching {
+                        if (url.isNotBlank()) store.importM3u(url)
+                        else store.importXtream(server, user, pass)
+                        "Quelle geladen"
+                    }.getOrElse { "Fehler: ${it.message ?: "unbekannt"}" }
+                }
+            }) { Text("Laden") }
+            TextButton(onClick = onDone) { Text("Fertig") }
         }
+        if (status.isNotBlank()) Text(status, color = accent, fontSize = 13.sp)
     }
 }
-
-@Composable
-private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, startEditing: () -> Unit) {
-    val active = editing == id
-    val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(active) { if (active) keyboard?.show() }
-    if (!active) {
-        var focused by remember { mutableStateOf(false) }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp).height(58.dp).focusable().onFocusChanged { focused = it.isFocused }
-            .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { startEditing(); true } else false }
-            .background(if (focused) Color.White.copy(.10f) else Color.White.copy(.035f), RoundedCornerShape(14.dp))
-            .border(if (focused) 2.dp else 1.dp, if (focused) Color.White.copy(.55f) else Color.White.copy(.10f), RoundedCornerShape(14.dp)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text(label, color = if (focused) V6Text else V6Muted, fontSize = 9.sp); Text(if (value.isBlank()) "OK zum Eingeben" else value, color = V6Text, fontSize = 13.sp, maxLines = 1) }
-            if (focused) Text("OK", color = V6Text, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-        }
-    } else {
-        OutlinedTextField(value, onValue, label = { Text(label) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-    }
-}
-
-@Composable
-private fun V6SourceCard(title: String, accent: Color, modifier: Modifier, content: @Composable () -> Unit) {
-    Column(modifier.background(Color.White.copy(.055f), RoundedCornerShape(20.dp)).border(1.dp, Color.White.copy(.09f), RoundedCornerShape(20.dp)).padding(18.dp)) { Text(title, color = V6Text, fontSize = 18.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.height(10.dp)); content() }
-}
-
-@Composable
-private fun V6SourceButton(title: String, accent: Color, action: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Box(Modifier.padding(top = 8.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { action(); true } else false }
-        .background(if (focused) accent.copy(.17f) else Color.White.copy(.055f), RoundedCornerShape(12.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.08f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) { Text(title, color = V6Text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
-}
-
-@Composable
-private fun V6Settings(settings: SettingsStore, accent: Color, onSources: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Text("Einstellungen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
-        Text("Alles mit D-Pad + OK", color = V6Muted, fontSize = 13.sp)
-        Spacer(Modifier.height(16.dp))
-        V6SourceCard("Player", accent, Modifier.fillMaxWidth()) { Text("Engine: ${settings.player.engine.label}", color = V6Text); Text("Buffer: ${settings.player.bufferMode.label}", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
-        Spacer(Modifier.height(10.dp)); V6SourceCard("Live TV", accent, Modifier.fillMaxWidth()) { Text("Shared Catch-up: ${if (settings.player.preferCatchupSibling) "an" else "aus"}", color = V6Muted) }
-        Spacer(Modifier.height(10.dp)); V6SourceCard("Darstellung", accent, Modifier.fillMaxWidth()) { Text("Theme: ${settings.ui.theme.label}", color = V6Text); Text("Glasstärke: ${settings.ui.glassIntensity}/10", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
-        V6SourceButton("Quellen öffnen", accent, onSources)
-    }
-}
-
-private fun initialsV6(name: String): String = name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercaseChar().toString() }
