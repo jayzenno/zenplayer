@@ -102,10 +102,13 @@ fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit) {
     ) {
         Text("Look & Feel", fontSize = 36.sp)
         Text(
-            "Theme und Bewegungsverhalten werden live angewendet.",
+            "Alles hier wird direkt auf die gesamte ZenPlayer-Oberfläche angewendet.",
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
         ThemePreview(state)
+
+        Text("Themes", fontSize = 22.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ZenThemePreset.entries.forEach { preset ->
                 ThemePresetCard(
@@ -116,6 +119,23 @@ fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit) {
                     onStateChange(state.copy(preset = preset))
                 }
             }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            ThemeOptionCard(
+                title = "Reduced Motion",
+                value = if (state.reducedMotion) "An" else "Aus",
+                selected = state.reducedMotion,
+                accent = state.preset.accent,
+                onClick = { onStateChange(state.copy(reducedMotion = !state.reducedMotion)) }
+            )
+            ThemeOptionCard(
+                title = "Wallpaper",
+                value = if (state.wallpaperEnabled) "An" else "Aus",
+                selected = state.wallpaperEnabled,
+                accent = state.preset.accent,
+                onClick = { onStateChange(state.copy(wallpaperEnabled = !state.wallpaperEnabled)) }
+            )
         }
     }
 }
@@ -140,11 +160,7 @@ private fun ThemePreview(state: ZenThemeState) {
                 Brush.linearGradient(listOf(background, state.preset.surface)),
                 RoundedCornerShape(28.dp)
             )
-            .border(
-                1.dp,
-                accent.copy(alpha = .35f),
-                RoundedCornerShape(28.dp)
-            )
+            .border(1.dp, accent.copy(alpha = .35f), RoundedCornerShape(28.dp))
             .padding(28.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -193,6 +209,41 @@ private fun ThemePresetCard(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun ThemeOptionCard(
+    title: String,
+    value: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    var focused by rememberSaveable { mutableStateOf(false) }
+    Box(
+        Modifier
+            .size(width = 240.dp, height = 84.dp)
+            .background(
+                if (selected) accent.copy(alpha = .12f) else MaterialTheme.colorScheme.surface,
+                RoundedCornerShape(18.dp)
+            )
+            .border(
+                if (focused || selected) 2.dp else 1.dp,
+                if (focused || selected) accent else MaterialTheme.colorScheme.outline.copy(alpha = .35f),
+                RoundedCornerShape(18.dp)
+            )
+            .onFocusChanged { focused = it.hasFocus }
+            .focusable()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, fontSize = 17.sp)
+                Text(value, fontSize = 13.sp, color = accent)
+            }
         }
     }
 }
