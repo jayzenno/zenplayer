@@ -31,17 +31,17 @@ class NavigationUiSmokeTest {
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun dpadSelectionBackAndExitFlow() {
-        val home = composeRule.onNodeWithContentDescription("Home")
-        val epg = composeRule.onNodeWithContentDescription("EPG")
-        val search = composeRule.onNodeWithContentDescription("Suche")
+        val home = composeRule.onNodeWithContentDescription("Home").onParent()
+        val epg = composeRule.onNodeWithContentDescription("EPG").onParent()
+        val search = composeRule.onNodeWithContentDescription("Suche").onParent()
 
         composeRule.waitForIdle()
         home.assertIsDisplayed()
-        home.onParent().assertIsFocused()
+        home.assertIsFocused()
 
         home.performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.waitForIdle()
-        epg.onParent().assertIsFocused()
+        epg.assertIsFocused()
 
         epg.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
@@ -49,21 +49,21 @@ class NavigationUiSmokeTest {
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
-        home.onParent().assertIsFocused()
+        home.assertIsFocused()
 
         home.performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
         }
         composeRule.waitForIdle()
-        search.onParent().assertIsFocused()
+        search.assertIsFocused()
         search.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Suche").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
-        home.onParent().assertIsFocused()
+        home.assertIsFocused()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
