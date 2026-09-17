@@ -85,40 +85,26 @@ fun ZenPlayerApp() {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "Z",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 32.sp
-                    )
+                    Text("Z", color = MaterialTheme.colorScheme.primary, fontSize = 32.sp)
                     nav.forEachIndexed { index, item ->
                         NavButton(
                             item = item,
                             active = index == selected,
                             modifier = Modifier
                                 .then(
-                                    if (index == selected) {
-                                        Modifier.focusRequester(sidebarRequester)
-                                    } else {
-                                        Modifier
-                                    }
+                                    if (index == selected) Modifier.focusRequester(sidebarRequester)
+                                    else Modifier
                                 )
                                 .focusProperties {
                                     if (index == selected) {
-                                        right = if (index == nav.lastIndex) {
-                                            studioRequester
-                                        } else {
-                                            contentRequester
-                                        }
+                                        right = if (index == nav.lastIndex) studioRequester else contentRequester
                                     }
                                 },
                             onFocus = { contentHasFocus = 0 },
                             onClick = {
                                 selected = index
-                                if (index == nav.lastIndex) {
-                                    studioRequester.requestFocus()
-                                } else {
-                                    contentRequester.requestFocus()
-                                }
+                                if (index == nav.lastIndex) studioRequester.requestFocus()
+                                else contentRequester.requestFocus()
                             }
                         )
                     }
@@ -129,9 +115,8 @@ fun ZenPlayerApp() {
                         state = themeState,
                         onStateChange = { themeState = it },
                         firstFocusRequester = studioRequester,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
+                        onChildFocus = { contentHasFocus = 1 },
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     )
                 } else {
                     ContentPane(
@@ -144,9 +129,7 @@ fun ZenPlayerApp() {
                             .focusProperties {
                                 left = androidx.compose.ui.focus.FocusRequester.Cancel
                             }
-                            .onFocusChanged {
-                                contentHasFocus = if (it.hasFocus) 1 else 0
-                            }
+                            .onFocusChanged { contentHasFocus = if (it.hasFocus) 1 else 0 }
                     )
                 }
             }
@@ -155,14 +138,8 @@ fun ZenPlayerApp() {
 }
 
 @Composable
-private fun ContentPane(
-    title: String,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.CenterStart
-    ) {
+private fun ContentPane(title: String, modifier: Modifier = Modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, color = MaterialTheme.colorScheme.onBackground, fontSize = 38.sp)
             Text(
