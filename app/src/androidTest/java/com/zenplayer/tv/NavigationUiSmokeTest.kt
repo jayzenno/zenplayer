@@ -65,6 +65,11 @@ class NavigationUiSmokeTest {
         composeRule.waitForIdle()
         home.assertIsFocused()
 
+        // First Back on Home arms the two-step exit flow.
+        composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        composeRule.waitForIdle()
+
+        // Second Back on Home opens the exit dialog.
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
         composeRule.onNodeWithText("ZenPlayer beenden?").assertIsDisplayed()
