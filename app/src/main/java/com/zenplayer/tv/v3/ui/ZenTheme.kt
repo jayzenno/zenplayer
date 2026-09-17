@@ -46,9 +46,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Keep the current theme model; this patch only fixes the invalid Modifier.weight()
-// call inside ControlColumn. Width is supplied by the parent Row instead.
-
 enum class ZenThemePreset(val label: String, val accent: Color, val background: Color, val surface: Color, val secondary: Color, val glassOpacity: Float, val glowStrength: Float) {
     Aurora("Aurora", Color(0xFF64E8FF), Color(0xFF050A16), Color(0xFF101A2D), Color(0xFF6D7BFF), .62f, .72f),
     Nebula("Nebula", Color(0xFFB784FF), Color(0xFF090615), Color(0xFF19122A), Color(0xFF5B6DFF), .64f, .78f),
@@ -78,7 +75,17 @@ enum class ZenReceiverTheme(val label: String, val accent: Color, val background
 enum class ZenBackgroundPreset(val label: String) { Static("Static"), AuroraFlow("Aurora Flow"), DeepSpace("Deep Space"), LiquidGlass("Liquid Glass"), Eclipse("Eclipse"), OceanDepth("Ocean Depth"), ParticleDrift("Particle Drift"), CloudedLight("Clouded Light"), GradientMesh("Gradient Mesh") }
 enum class ZenAnimationSpeed(val label: String, val durationMs: Int) { Off("Off", 1), Slow("Slow", 18000), Normal("Normal", 9000), Fast("Fast", 4500) }
 
-data class ZenThemeState(val preset: ZenThemePreset = ZenThemePreset.Aurora, val receiver: ZenReceiverTheme? = null, val background: ZenBackgroundPreset = ZenBackgroundPreset.AuroraFlow, val backgroundBlur: Int = 24, val backgroundIntensity: Float = .62f, val animationSpeed: ZenAnimationSpeed = ZenAnimationSpeed.Slow, val reducedMotion: Boolean = false, val glassOpacity: Float = ZenThemePreset.Aurora.glassOpacity, val glowStrength: Float = ZenThemePreset.Aurora.glowStrength)
+data class ZenThemeState(
+    val preset: ZenThemePreset = ZenThemePreset.Aurora,
+    val receiver: ZenReceiverTheme? = null,
+    val background: ZenBackgroundPreset = ZenBackgroundPreset.AuroraFlow,
+    val backgroundBlur: Int = 24,
+    val backgroundIntensity: Float = .62f,
+    val animationSpeed: ZenAnimationSpeed = ZenAnimationSpeed.Slow,
+    val reducedMotion: Boolean = false,
+    val glassOpacity: Float = ZenThemePreset.Aurora.glassOpacity,
+    val glowStrength: Float = ZenThemePreset.Aurora.glowStrength
+)
 
 private fun receiverScheme(receiver: ZenReceiverTheme) = darkColorScheme(primary = receiver.accent, secondary = receiver.secondary, background = receiver.background, surface = receiver.surface, onBackground = Color.White, onSurface = Color.White)
 private val FrostLight = lightColorScheme(primary = ZenThemePreset.Frost.accent, secondary = ZenThemePreset.Frost.secondary, background = ZenThemePreset.Frost.background, surface = ZenThemePreset.Frost.surface, onBackground = Color(0xFF10151D), onSurface = Color(0xFF10151D))
@@ -117,4 +124,4 @@ fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit, fi
 @Composable private fun ReceiverCard(r: ZenReceiverTheme, selected: Boolean, reducedMotion: Boolean, onFocus: () -> Unit, onClick: () -> Unit) { FocusCard(Modifier, selected, r.accent, reducedMotion, r.label, r.surface, onFocus, onClick) }
 @Composable private fun CompactOptionCard(label: String, selected: Boolean, accent: Color, onFocus: () -> Unit, onClick: () -> Unit) { FocusCard(Modifier, selected, accent, false, label, MaterialTheme.colorScheme.surface, onFocus, onClick, 150.dp, 62.dp) }
 @Composable private fun FocusCard(modifier: Modifier, selected: Boolean, accent: Color, reducedMotion: Boolean, label: String, surface: Color, onFocus: () -> Unit, onClick: () -> Unit, width: Dp = 170.dp, height: Dp = 92.dp) { var focused by remember { mutableStateOf(false) }; val scale by animateFloatAsState(if (focused) 1.045f else 1f, tween(if (reducedMotion) 0 else 130), label = "cardFocusScale"); Box(modifier.size(width, height).scale(scale).alpha(if (selected) 1f else .74f).clip(RoundedCornerShape(18.dp)).background(surface.copy(alpha = if (selected) .92f else .72f), RoundedCornerShape(18.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else accent.copy(alpha = if (selected) .42f else .12f), RoundedCornerShape(18.dp)).onFocusChanged { focused = it.hasFocus; if (it.hasFocus) onFocus() }.focusable().clickable(onClick = onClick).padding(14.dp)) { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Box(Modifier.size(13.dp).background(accent, RoundedCornerShape(7.dp))); Text(label, fontSize = 16.sp); if (selected) Text("Aktiv", fontSize = 11.sp, color = accent) } } }
-@Composable private fun ControlColumn(title: String, value: String, sliderValue: Float, onFocus: () -> Unit, modifier: Modifier, onChange: (Float) -> Unit) { Column(modifier.height(84.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, fontSize = 15.sp); Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary) }; Slider(value = sliderValue, onValueChange = onChange, modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocus() }.focusable()) } }
+@Composable private fun ControlColumn(title: String, value: String, sliderValue: Float, onFocus: () -> Unit, modifier: Modifier, onChange: (Float) -> Unit) { Column(modifier.height(84.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text(title, fontSize = 15.sp); Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary) }; Slider(value = sliderValue, onValueChange = onChange, modifier = Modifier.onFocusChanged { if (it.hasFocus) onFocus() }) } }
