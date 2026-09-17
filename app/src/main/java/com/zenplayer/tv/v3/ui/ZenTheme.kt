@@ -95,9 +95,13 @@ fun ZenTheme(state: ZenThemeState, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit) {
+fun ThemeStudio(
+    state: ZenThemeState,
+    onStateChange: (ZenThemeState) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
-        Modifier.fillMaxSize().padding(36.dp),
+        modifier.fillMaxSize().padding(36.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         Text("Look & Feel", fontSize = 36.sp)
@@ -105,9 +109,7 @@ fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit) {
             "Alles hier wird direkt auf die gesamte ZenPlayer-Oberfläche angewendet.",
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
         ThemePreview(state)
-
         Text("Themes", fontSize = 22.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ZenThemePreset.entries.forEach { preset ->
@@ -120,7 +122,6 @@ fun ThemeStudio(state: ZenThemeState, onStateChange: (ZenThemeState) -> Unit) {
                 }
             }
         }
-
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ThemeOptionCard(
                 title = "Reduced Motion",
@@ -239,11 +240,9 @@ private fun ThemeOptionCard(
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, fontSize = 17.sp)
-                Text(value, fontSize = 13.sp, color = accent)
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, fontSize = 17.sp)
+            Text(value, fontSize = 13.sp, color = accent)
         }
     }
 }
