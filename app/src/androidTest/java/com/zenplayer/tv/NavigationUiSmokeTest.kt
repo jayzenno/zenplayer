@@ -2,9 +2,9 @@ package com.zenplayer.tv
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -48,12 +48,12 @@ class NavigationUiSmokeTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
 
-        // Left from content is deliberately blocked; focus must not jump back
-        // into the sidebar. The content remains active until Back is pressed.
+        // Left from content is deliberately blocked; focus must stay out of
+        // the sidebar. Back is the explicit way back to the sidebar/home.
         epg.performKeyInput { pressKey(Key.DirectionLeft) }
         composeRule.waitForIdle()
-        home.assertIsDisplayed()
-        home.assertIsFocused()
+        home.assertIsNotFocused()
+        composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
