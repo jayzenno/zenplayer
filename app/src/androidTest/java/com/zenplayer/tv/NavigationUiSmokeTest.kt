@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,11 +37,11 @@ class NavigationUiSmokeTest {
 
         composeRule.waitForIdle()
         home.assertIsDisplayed()
-        home.assertIsFocused()
+        home.onParent().assertIsFocused()
 
         home.performKeyInput { pressKey(Key.DirectionDown) }
         composeRule.waitForIdle()
-        epg.assertIsFocused()
+        epg.onParent().assertIsFocused()
 
         epg.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
@@ -48,21 +49,21 @@ class NavigationUiSmokeTest {
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
-        home.assertIsFocused()
+        home.onParent().assertIsFocused()
 
         home.performKeyInput {
             pressKey(Key.DirectionDown)
             pressKey(Key.DirectionDown)
         }
         composeRule.waitForIdle()
-        search.assertIsFocused()
+        search.onParent().assertIsFocused()
         search.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Suche").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
-        home.assertIsFocused()
+        home.onParent().assertIsFocused()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
