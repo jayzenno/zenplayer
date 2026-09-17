@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -126,7 +127,14 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
                     if (selected != page) homeBackReset = false
                     page = selected
                 }
-                Box(Modifier.weight(1f).fillMaxHeight()) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .focusProperties {
+                            left = FocusRequester.Cancel
+                        }
+                ) {
                     when (page) {
                         "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true; homeBackReset = false }, { demo = false; homeBackReset = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
                         "epg" -> V6Epg(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
