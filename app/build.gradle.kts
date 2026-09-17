@@ -41,5 +41,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.videolan.android:libvlc-all:3.7.6")
+    testImplementation(kotlin("test"))
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
