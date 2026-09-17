@@ -2,15 +2,17 @@ package com.zenplayer.tv
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.printToLog
 import androidx.compose.ui.test.pressKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -91,7 +93,7 @@ class NavigationUiDiagnosticsTest {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
             composeRule.waitForIdle()
             home.assertIsFocused()
-            composeRule.onNodeWithText("ZenPlayer beenden?").assertDoesNotExist()
+            composeRule.onAllNodesWithText("ZenPlayer beenden?").assertCountEquals(0)
         }
 
         trace("HOME --BACK--> EXIT DIALOG") {
