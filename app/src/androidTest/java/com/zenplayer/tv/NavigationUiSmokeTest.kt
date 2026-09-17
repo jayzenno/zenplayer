@@ -45,7 +45,7 @@ class NavigationUiSmokeTest {
 
         epg.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("EPG").assertIsDisplayed()
+        composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
@@ -59,7 +59,7 @@ class NavigationUiSmokeTest {
         search.assertIsFocused()
         search.performKeyInput { pressKey(Key.DirectionCenter) }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Suche").assertIsDisplayed()
+        composeRule.onNodeWithText("Fokus öffnet nichts · erst OK startet die Eingabe").assertIsDisplayed()
 
         composeRule.activity.onBackPressedDispatcher.onBackPressed()
         composeRule.waitForIdle()
