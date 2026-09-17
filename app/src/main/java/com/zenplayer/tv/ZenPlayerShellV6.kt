@@ -26,7 +26,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -70,22 +69,15 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
     var playerIndex by remember { mutableIntStateOf(-1) }
     var showExitDialog by remember { mutableStateOf(false) }
     var homeBackReset by remember { mutableStateOf(false) }
-    var contentActive by remember { mutableStateOf(false) }
     var focusRestoreRequest by remember { mutableIntStateOf(0) }
-    var lastSidebarId by remember { mutableStateOf("home") }
     val homeFocusRequester = remember { FocusRequester() }
-    val contentEntryRequester = remember { FocusRequester() }
     val channels = if (demo) DemoData.channels() else store.channels
 
     BackHandler(enabled = true) {
         when {
             showExitDialog -> showExitDialog = false
             playerIndex >= 0 -> playerIndex = -1
-            sources -> { sources = false; page = sourceReturn; contentActive = false }
-            contentActive -> {
-                contentActive = false
-                focusRestoreRequest++
-            }
+            sources -> { sources = false; page = sourceReturn; homeBackReset = false }
             page != "home" -> {
                 page = "home"
                 homeBackReset = false
@@ -130,42 +122,25 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
             else -> Row(
                 Modifier.fillMaxSize().padding(20.dp),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                V6Sidebar(
-                    page = page,
-                    accent = accent,
-                    homeFocusRequester = homeFocusRequester,
-                    focusRestoreRequest = focusRestoreRequest,
-                    lastSidebarId = lastSidebarId,
-                    contentEntryRequester = contentEntryRequester,
-                    onFocusSidebar = { lastSidebarId = it },
-                    onPage = { selected ->
-                        if (selected != page) homeBackReset = false
-                        page = selected
-                        contentActive = false
-                    }
-                )
+                V6Sidebar(page, accent, homeFocusRequester, focusRestoreRequest) { selected ->
+                    if (selected != page) homeBackReset = false
+                    page = selected
+                }
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .focusProperties {
-                            onEnter {
-                                contentActive = true
-                                contentEntryRequester.requestFocus()
-                            }
-                            onExit {
-                                if (requestedFocusDirection == FocusDirection.Left) cancelFocusChange()
-                            }
+                            left = FocusRequester.Cancel
                         }
-                        .focusGroup()
                 ) {
                     when (page) {
-                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true; homeBackReset = false }, { demo = false; homeBackReset = false }, contentEntryRequester) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
-                        "epg" -> V6Epg(store, demo, accent, contentEntryRequester) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
-                        "search" -> V6Search(store, demo, accent, contentEntryRequester) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
-                        else -> V6Settings(settings, accent, contentEntryRequester) { sourceReturn = page; sources = true }
+                        "home" -> V6Home(store, demo, accent, { sourceReturn = page; sources = true }, { demo = true; homeBackReset = false }, { demo = false; homeBackReset = false }) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
+                        "epg" -> V6Epg(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
+                        "search" -> V6Search(store, demo, accent) { c -> playerIndex = channels.indexOf(c).coerceAtLeast(0) }
+                        else -> V6Settings(settings, accent) { sourceReturn = page; sources = true }
                     }
                 }
             }
@@ -174,24 +149,15 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
 }
 
 @Composable
-private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, lastSidebarId: String, contentEntryRequester: FocusRequester, onFocusSidebar: (String) -> Unit, onPage: (String) -> Unit) {
+private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequester, focusRestoreRequest: Int, onPage: (String) -> Unit) {
     val ids = listOf("home", "epg", "search", "settings")
     val labels = listOf("Home", "EPG", "Suche", "Settings")
     val icons = listOf(Icons.Default.Home, Icons.Default.PlayArrow, Icons.Default.Search, Icons.Default.Settings)
     val requesters = remember { List(ids.size) { FocusRequester() } }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(homeFocusRequester, focusRestoreRequest) {
         withFrameNanos { }
         homeFocusRequester.requestFocus()
-    }
-
-    LaunchedEffect(focusRestoreRequest, lastSidebarId) {
-        if (focusRestoreRequest > 0) {
-            withFrameNanos { }
-            val index = ids.indexOf(lastSidebarId).coerceAtLeast(0)
-            val requester = if (index == 0) homeFocusRequester else requesters[index]
-            requester.requestFocus()
-        }
     }
 
     Column(
@@ -201,14 +167,6 @@ private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequ
             .background(Color.White.copy(.045f), RoundedCornerShape(24.dp))
             .border(1.dp, Color.White.copy(.10f), RoundedCornerShape(24.dp))
             .padding(10.dp)
-            .focusProperties {
-                onExit {
-                    if (requestedFocusDirection == FocusDirection.Right) {
-                        contentEntryRequester.requestFocus()
-                        cancelFocusChange()
-                    }
-                }
-            }
             .focusRestorer(homeFocusRequester)
             .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -225,10 +183,7 @@ private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequ
                 Modifier
                     .size(58.dp)
                     .focusRequester(requester)
-                    .onFocusChanged {
-                        focused = it.isFocused
-                        if (it.isFocused) onFocusSidebar(id)
-                    }
+                    .onFocusChanged { focused = it.isFocused }
                     .focusable()
                     .onKeyEvent { e ->
                         if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) {
@@ -247,19 +202,19 @@ private fun V6Sidebar(page: String, accent: Color, homeFocusRequester: FocusRequ
 }
 
 @Composable
-private fun V6Home(store: PlaylistStore, demo: Boolean, accent: Color, onSources: () -> Unit, onDemo: () -> Unit, onExitDemo: () -> Unit, contentEntryRequester: FocusRequester, onPlay: (Channel) -> Unit) {
+private fun V6Home(store: PlaylistStore, demo: Boolean, accent: Color, onSources: () -> Unit, onDemo: () -> Unit, onExitDemo: () -> Unit, onPlay: (Channel) -> Unit) {
     val channels = if (demo) DemoData.channels() else store.channels
     Column(Modifier.fillMaxSize()) {
         Text(if (demo) "Demo-Modus" else "Für dich", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text(if (demo) "Testsender · EPG · Player" else "Dein persönliches Live-TV", color = V6Muted, fontSize = 14.sp)
         Spacer(Modifier.height(20.dp))
         if (channels.isEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            V6Action("Playlist hinzufügen", "M3U / URL / Xtream", Icons.Default.Source, accent, contentEntryRequester, onSources)
-            V6Action("Demo starten", "Ohne Quelle testen", Icons.Default.PlayArrow, accent, null, onDemo)
+            V6Action("Playlist hinzufügen", "M3U / URL / Xtream", Icons.Default.Source, accent, onSources)
+            V6Action("Demo starten", "Ohne Quelle testen", Icons.Default.PlayArrow, accent, onDemo)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                V6Action("Quelle verwalten", "Playlist / Xtream", Icons.Default.Source, accent, contentEntryRequester, onSources)
-                if (demo) V6Action("Demo beenden", "Zur Playlist zurück", Icons.Default.Home, accent, null, onExitDemo)
+                V6Action("Quelle verwalten", "Playlist / Xtream", Icons.Default.Source, accent, onSources)
+                if (demo) V6Action("Demo beenden", "Zur Playlist zurück", Icons.Default.Home, accent, onExitDemo)
             }
             Spacer(Modifier.height(14.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(bottom = 24.dp)) { items(channels) { V6Channel(it, accent) { onPlay(it) } } }
@@ -268,9 +223,9 @@ private fun V6Home(store: PlaylistStore, demo: Boolean, accent: Color, onSources
 }
 
 @Composable
-private fun V6Action(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, accent: Color, focusRequester: FocusRequester?, action: () -> Unit) {
+private fun V6Action(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, accent: Color, action: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Row(Modifier.width(360.dp).height(96.dp).then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { action(); true } else false }
+    Row(Modifier.width(360.dp).height(96.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { action(); true } else false }
         .background(if (focused) accent.copy(.16f) else Color.White.copy(.055f), RoundedCornerShape(20.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.08f), RoundedCornerShape(20.dp)).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = accent); Column(Modifier.padding(start = 14.dp)) { Text(title, color = V6Text, fontSize = 16.sp, fontWeight = FontWeight.Bold); Text(subtitle, color = V6Muted, fontSize = 11.sp) }
     }
@@ -288,10 +243,9 @@ private fun V6Channel(channel: Channel, accent: Color, action: () -> Unit) {
 }
 
 @Composable
-private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, contentEntryRequester: FocusRequester, onPlay: (Channel) -> Unit) {
+private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, onPlay: (Channel) -> Unit) {
     val channels = if (demo) DemoData.channels() else store.channels
     val programmes = if (demo) DemoData.programmes() else store.programmes
-    val firstProgramId = channels.asSequence().flatMap { channel -> programmes.filter { it.channelId == channel.id }.sortedBy { it.start }.take(8).asSequence() }.firstOrNull()?.id
     Column(Modifier.fillMaxSize()) {
         Text("EPG", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text("OK startet den gewählten Sender", color = V6Muted, fontSize = 13.sp)
@@ -303,7 +257,7 @@ private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, contentEnt
                     item { Text(channel.name, color = accent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
                     items(ps) { p ->
                         var focused by remember(p.id) { mutableStateOf(false) }
-                        Row(Modifier.fillMaxWidth().height(58.dp).then(if (p.id == firstProgramId) Modifier.focusRequester(contentEntryRequester) else Modifier).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { onPlay(channel); true } else false }
+                        Row(Modifier.fillMaxWidth().height(58.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { onPlay(channel); true } else false }
                             .background(if (focused) accent.copy(.13f) else Color.White.copy(.05f), RoundedCornerShape(14.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.Transparent, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(SimpleDateFormat("HH:mm", Locale.GERMANY).format(Date(p.start)), color = accent, fontSize = 11.sp, modifier = Modifier.width(52.dp))
                             Column(Modifier.weight(1f)) { Text(p.title, color = V6Text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(p.category ?: "TV", color = V6Muted, fontSize = 9.sp) }
@@ -317,7 +271,7 @@ private fun V6Epg(store: PlaylistStore, demo: Boolean, accent: Color, contentEnt
 }
 
 @Composable
-private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, contentEntryRequester: FocusRequester, onPlay: (Channel) -> Unit) {
+private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, onPlay: (Channel) -> Unit) {
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     val channels = if (demo) DemoData.channels() else store.channels
@@ -325,7 +279,7 @@ private fun V6Search(store: PlaylistStore, demo: Boolean, accent: Color, content
     Column(Modifier.fillMaxSize()) {
         Text("Suche", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text("Fokus öffnet nichts · erst OK startet die Eingabe", color = V6Muted, fontSize = 13.sp)
-        V6TvInput("Sender suchen…", query, { query = it }, "search", if (editing) "search" else "", contentEntryRequester) { editing = true }
+        V6TvInput("Sender suchen…", query, { query = it }, "search", if (editing) "search" else "") { editing = true }
         Spacer(Modifier.height(10.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered) { V6Channel(it, accent) { onPlay(it) } } }
     }
@@ -349,13 +303,13 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
         LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
             item { V6SourceCard("M3U / M3U8", accent, Modifier.fillMaxWidth()) {
                 V6SourceButton("Datei auswählen", accent) { picker.launch(arrayOf("*/*")) }
-                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing, null) { editing = "url" }
+                V6TvInput("M3U / M3U8 URL", url, { url = it }, "url", editing) { editing = "url" }
                 V6SourceButton("URL importieren", accent) { scope.launch { status = "URL wird geladen…"; runCatching { store.importPlaylistFromUrl(url.trim()) }.onSuccess { status = "${store.channels.size} Sender importiert"; onDone() }.onFailure { status = it.message ?: "M3U konnte nicht geladen werden" } } }
             } }
             item { V6SourceCard("Xtream Codes", accent, Modifier.fillMaxWidth()) {
-                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing, null) { editing = "server" }
-                V6TvInput("Benutzername", user, { user = it }, "user", editing, null) { editing = "user" }
-                V6TvInput("Passwort", pass, { pass = it }, "pass", editing, null) { editing = "pass" }
+                V6TvInput("Server URL oder Host", server, { server = it }, "server", editing) { editing = "server" }
+                V6TvInput("Benutzername", user, { user = it }, "user", editing) { editing = "user" }
+                V6TvInput("Passwort", pass, { pass = it }, "pass", editing) { editing = "pass" }
                 V6SourceButton("Xtream verbinden", accent) { scope.launch { status = "Xtream wird verbunden…"; val result = XtreamClient(server.trim(), user.trim(), pass).load(); if (result.isSuccess) { val list = result.getOrNull().orEmpty(); store.importXtream(list); status = "${list.size} Sender importiert"; onDone() } else status = result.exceptionOrNull()?.message ?: "Xtream-Verbindung fehlgeschlagen" } }
             } }
             item { Text(status, color = accent, fontSize = 12.sp); V6SourceButton("Zurück", accent, onBack) }
@@ -364,13 +318,13 @@ private fun V6Sources(store: PlaylistStore, accent: Color, onBack: () -> Unit, o
 }
 
 @Composable
-private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, focusRequester: FocusRequester?, startEditing: () -> Unit) {
+private fun V6TvInput(label: String, value: String, onValue: (String) -> Unit, id: String, editing: String, startEditing: () -> Unit) {
     val active = editing == id
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(active) { if (active) keyboard?.show() }
     if (!active) {
         var focused by remember { mutableStateOf(false) }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp).height(58.dp).then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier).focusable().onFocusChanged { focused = it.isFocused }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp).height(58.dp).focusable().onFocusChanged { focused = it.isFocused }
             .onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { startEditing(); true } else false }
             .background(if (focused) Color.White.copy(.10f) else Color.White.copy(.035f), RoundedCornerShape(14.dp))
             .border(if (focused) 2.dp else 1.dp, if (focused) Color.White.copy(.55f) else Color.White.copy(.10f), RoundedCornerShape(14.dp)).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -388,14 +342,14 @@ private fun V6SourceCard(title: String, accent: Color, modifier: Modifier, conte
 }
 
 @Composable
-private fun V6SourceButton(title: String, accent: Color, action: () -> Unit, focusRequester: FocusRequester? = null) {
+private fun V6SourceButton(title: String, accent: Color, action: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Box(Modifier.padding(top = 8.dp).then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { action(); true } else false }
+    Box(Modifier.padding(top = 8.dp).focusable().onFocusChanged { focused = it.isFocused }.onKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key in V6OkKeys) { action(); true } else false }
         .background(if (focused) accent.copy(.17f) else Color.White.copy(.055f), RoundedCornerShape(12.dp)).border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(.08f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) { Text(title, color = V6Text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
 }
 
 @Composable
-private fun V6Settings(settings: SettingsStore, accent: Color, contentEntryRequester: FocusRequester, onSources: () -> Unit) {
+private fun V6Settings(settings: SettingsStore, accent: Color, onSources: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Text("Einstellungen", color = V6Text, fontSize = 34.sp, fontWeight = FontWeight.Black)
         Text("Alles mit D-Pad + OK", color = V6Muted, fontSize = 13.sp)
@@ -403,7 +357,7 @@ private fun V6Settings(settings: SettingsStore, accent: Color, contentEntryReque
         V6SourceCard("Player", accent, Modifier.fillMaxWidth()) { Text("Engine: ${settings.player.engine.label}", color = V6Text); Text("Buffer: ${settings.player.bufferMode.label}", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
         Spacer(Modifier.height(10.dp)); V6SourceCard("Live TV", accent, Modifier.fillMaxWidth()) { Text("Shared Catch-up: ${if (settings.player.preferCatchupSibling) "an" else "aus"}", color = V6Muted) }
         Spacer(Modifier.height(10.dp)); V6SourceCard("Darstellung", accent, Modifier.fillMaxWidth()) { Text("Theme: ${settings.ui.theme.label}", color = V6Text); Text("Glasstärke: ${settings.ui.glassIntensity}/10", color = V6Muted, modifier = Modifier.padding(top = 5.dp)) }
-        V6SourceButton("Quellen öffnen", accent, onSources, contentEntryRequester)
+        V6SourceButton("Quellen öffnen", accent, onSources)
     }
 }
 
