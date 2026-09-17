@@ -56,16 +56,13 @@ class NavigationUiDiagnosticsTest {
             composeRule.onNodeWithText("OK startet den gewählten Sender").assertIsDisplayed()
         }
 
-        trace("EPG CONTENT --BACK--> SIDEBAR") {
+        trace("EPG CONTENT --BACK--> SIDEBAR / RESTORE EPG") {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
             composeRule.waitForIdle()
-            home.assertIsFocused()
+            epg.assertIsFocused()
         }
 
-        trace("HOME --DOWN,DOWN--> SEARCH") {
-            home.performKeyInput { pressKey(Key.DirectionDown) }
-            composeRule.waitForIdle()
-            epg.assertIsFocused()
+        trace("EPG SIDEBAR --DOWN--> SEARCH") {
             epg.performKeyInput { pressKey(Key.DirectionDown) }
             composeRule.waitForIdle()
             search.assertIsFocused()
@@ -77,7 +74,7 @@ class NavigationUiDiagnosticsTest {
             composeRule.onNodeWithText("Fokus öffnet nichts · erst OK startet die Eingabe").assertIsDisplayed()
         }
 
-        trace("SEARCH CONTENT --BACK--> SIDEBAR") {
+        trace("SEARCH CONTENT --BACK--> SIDEBAR / RESTORE SEARCH") {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
             composeRule.waitForIdle()
             search.assertIsFocused()
