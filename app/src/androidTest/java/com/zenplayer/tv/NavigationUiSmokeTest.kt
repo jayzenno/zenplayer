@@ -2,6 +2,7 @@ package com.zenplayer.tv
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -27,6 +28,7 @@ class NavigationUiSmokeTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
+    @OptIn(ExperimentalTestApi::class)
     @Test
     fun dpadSelectionBackAndExitFlow() {
         val home = composeRule.onNodeWithContentDescription("Home")
