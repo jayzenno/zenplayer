@@ -15,9 +15,13 @@ class XtreamClient(server: String, private val username: String, private val pas
     suspend fun load(): Result<List<Channel>> = withContext(Dispatchers.IO) {
         runCatching {
             require(base.isNotBlank()) { "Bitte einen Xtream-Server eingeben." }
+            require(username.isNotBlank()) { "Bitte einen Xtream-Benutzernamen eingeben." }
+            require(password.isNotBlank()) { "Bitte ein Xtream-Passwort eingeben." }
             val auth = request("player_api.php?username=${enc(username)}&password=${enc(password)}")
-            val userInfo = auth.optJSONObject("user_info") ?: error("Ungültige Xtream-Antwort")
-            require(userInfo.optString("status").equals("Active", true)) { "Xtream-Konto ist nicht aktiv." }
+            val userInfo = auth.optJSONObject("user_info") ?: error("Ungültige Xtream-Antwort: user_info fehlt.")
+            require(userInfo.optInt("auth", 0) == 1) {
+                userInfo.optString("message").ifBlank { "Xtream-Anmeldung fehlgeschlagen (${userInfo.optString("status", "unbekannt")})." }
+            }
             val categories = requestArray("player_api.php?username=${enc(username)}&password=${enc(password)}&action=get_live_categories")
             val categoryNames = mutableMapOf<String, String>()
             for (i in 0 until categories.length()) {
@@ -31,8 +35,9 @@ class XtreamClient(server: String, private val username: String, private val pas
                     val id = s.optString("stream_id").ifBlank { continue }
                     val name = s.optString("name").ifBlank { "Sender $id" }
                     add(Channel(
-                        id = "xtream:$id", name = name,
-                        streamUrl = "$base/live/$username/$password/$id.ts",
+                        id = "xtream:$id",
+                        name = name,
+                        streamUrl = "$base/live/${enc(username)}/${enc(password)}/$id.ts",
                         group = categoryNames[s.optString("category_id")],
                         logoUrl = s.optString("stream_icon").ifBlank { null },
                         tvgId = s.optString("epg_channel_id").ifBlank { null },
@@ -41,7 +46,7 @@ class XtreamClient(server: String, private val username: String, private val pas
                         resolutionHint = s.optString("stream_type").ifBlank { null }
                     ))
                 }
-            }
+            }.also { require(it.isNotEmpty()) { "Xtream-Anmeldung war erfolgreich, aber der Anbieter liefert keine Live-Sender." } }
         }
     }
 
@@ -50,11 +55,14 @@ class XtreamClient(server: String, private val username: String, private val pas
 
     private fun requestText(path: String): String {
         val c = (URL("$base/$path").openConnection() as HttpURLConnection).apply {
-            connectTimeout = 12_000; readTimeout = 20_000; instanceFollowRedirects = true
+            connectTimeout = 12_000
+            readTimeout = 30_000
+            instanceFollowRedirects = true
             setRequestProperty("User-Agent", "ZenPlayer/1.0 AndroidTV")
+            setRequestProperty("Accept", "application/json, */*")
         }
         return try {
-            require(c.responseCode in 200..399) { "HTTP ${c.responseCode}" }
+            require(c.responseCode in 200..399) { "Xtream-Server antwortet mit HTTP ${c.responseCode}." }
             c.inputStream.bufferedReader().use { it.readText() }
         } finally { c.disconnect() }
     }
@@ -65,11 +73,7 @@ class XtreamClient(server: String, private val username: String, private val pas
         private fun normalizeServer(input: String): String {
             var value = input.trim().trimEnd('/')
             if (value.isBlank()) return ""
-            if (!value.startsWith("http://", true) && !value.startsWith("https://", true)) {
-                // Xtream providers commonly publish only a hostname. Java URL then uses
-                // the protocol's normal default port (80/443); no explicit port is required.
-                value = "http://$value"
-            }
+            if (!value.startsWith("http://", true) && !value.startsWith("https://", true)) value = "http://$value"
             return value
         }
     }
