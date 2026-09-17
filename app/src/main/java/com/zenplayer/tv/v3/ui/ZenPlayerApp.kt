@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,7 +35,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -56,6 +56,7 @@ fun ZenPlayerApp() {
     }
     var selected by remember { mutableIntStateOf(0) }
     var contentHasFocus by remember { mutableIntStateOf(0) }
+    var themeState by remember { mutableStateOf(ZenThemeState()) }
 
     val sidebarRequester = remember { FocusRequester() }
     val contentRequester = remember { FocusRequester() }
@@ -65,8 +66,12 @@ fun ZenPlayerApp() {
         contentHasFocus = 0
     }
 
-    MaterialTheme {
-        Box(Modifier.fillMaxSize().background(Color(0xFF05070D))) {
+    ZenTheme(themeState) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
             Row(
                 Modifier.fillMaxSize().padding(24.dp),
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
@@ -79,13 +84,23 @@ fun ZenPlayerApp() {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Z", color = Color(0xFF7DE7FF), fontSize = 32.sp)
+                    Text(
+                        "Z",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 32.sp
+                    )
                     nav.forEachIndexed { index, item ->
                         NavButton(
                             item = item,
                             active = index == selected,
                             modifier = Modifier
-                                .then(if (index == selected) Modifier.focusRequester(sidebarRequester) else Modifier)
+                                .then(
+                                    if (index == selected) {
+                                        Modifier.focusRequester(sidebarRequester)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                                 .focusProperties {
                                     if (index == selected) {
                                         right = contentRequester
@@ -100,18 +115,37 @@ fun ZenPlayerApp() {
                     }
                 }
 
-                ContentPane(
-                    title = nav[selected].label,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .focusRequester(contentRequester)
-                        .focusable()
-                        .focusProperties {
-                            left = androidx.compose.ui.focus.FocusRequester.Cancel
-                        }
-                        .onFocusChanged { contentHasFocus = if (it.hasFocus) 1 else 0 }
-                )
+                if (selected == nav.lastIndex) {
+                    ThemeStudio(
+                        state = themeState,
+                        onStateChange = { themeState = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .focusRequester(contentRequester)
+                            .focusProperties {
+                                left = androidx.compose.ui.focus.FocusRequester.Cancel
+                            }
+                            .onFocusChanged {
+                                contentHasFocus = if (it.hasFocus) 1 else 0
+                            }
+                    )
+                } else {
+                    ContentPane(
+                        title = nav[selected].label,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .focusRequester(contentRequester)
+                            .focusable()
+                            .focusProperties {
+                                left = androidx.compose.ui.focus.FocusRequester.Cancel
+                            }
+                            .onFocusChanged {
+                                contentHasFocus = if (it.hasFocus) 1 else 0
+                            }
+                    )
+                }
             }
         }
     }
@@ -127,16 +161,16 @@ private fun ContentPane(
         contentAlignment = Alignment.CenterStart
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(title, color = Color.White, fontSize = 38.sp)
+            Text(title, color = MaterialTheme.colorScheme.onBackground, fontSize = 38.sp)
             Text(
                 "ZenPlayer 3.0 · Clean TV-first foundation",
-                color = Color(0xFF9CA6BA),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 16.sp
             )
             Spacer(Modifier.width(1.dp))
             Text(
                 "Navigation, Datenquellen, EPG und Player werden jetzt einzeln aufgebaut.",
-                color = Color(0xFF69748A),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         }
@@ -155,7 +189,8 @@ private fun NavButton(
         modifier
             .width(76.dp)
             .background(
-                if (active) Color(0x227DE7FF) else Color.Transparent,
+                if (active) MaterialTheme.colorScheme.primary.copy(alpha = .14f)
+                else androidx.compose.ui.graphics.Color.Transparent,
                 RoundedCornerShape(20.dp)
             )
             .focusable()
@@ -167,7 +202,8 @@ private fun NavButton(
         Icon(
             item.icon,
             contentDescription = item.label,
-            tint = if (active) Color.White else Color(0xFF8791A6)
+            tint = if (active) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
