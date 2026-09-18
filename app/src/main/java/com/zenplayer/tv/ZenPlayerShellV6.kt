@@ -51,7 +51,12 @@ private val V6Bg = Color(0xFF05070D)
 private val V6OkKeys = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
 
 @Composable
-fun ZenPlayerShellV6(settings: SettingsStore) {
+fun ZenPlayerShellV6(
+    settings: SettingsStore,
+    startPage: String = "home",
+    embedded: Boolean = false,
+    onExitToGate: () -> Unit = {},
+) {
     val context = LocalContext.current
     val store = remember { PlaylistStore(context) }
     val ui = settings.ui
@@ -61,8 +66,8 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
         ZenTheme.FROST -> Color(0xFF9FEAFF)
         ZenTheme.AMBER -> Color(0xFFFFC46E)
     }
-    var page by remember { mutableStateOf("home") }
-    var sourceReturn by remember { mutableStateOf("home") }
+    var page by remember { mutableStateOf(startPage) }
+    var sourceReturn by remember { mutableStateOf(startPage) }
     var sources by remember { mutableStateOf(false) }
     var demo by remember { mutableStateOf(false) }
     var playerIndex by remember { mutableIntStateOf(-1) }
@@ -76,11 +81,12 @@ fun ZenPlayerShellV6(settings: SettingsStore) {
             showExitDialog -> showExitDialog = false
             playerIndex >= 0 -> playerIndex = -1
             sources -> { sources = false; page = sourceReturn; homeBackReset = false }
-            page != "home" -> {
-                page = "home"
+            page != startPage -> {
+                page = startPage
                 homeBackReset = false
                 homeFocusRequester.requestFocus()
             }
+            embedded -> onExitToGate()
             !homeBackReset -> {
                 homeBackReset = true
                 homeFocusRequester.requestFocus()

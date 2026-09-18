@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceVariant = Color(0xFFB8C0D0)
                 )
             ) {
-                ZenPlayerShellV6(SettingsStore(this@MainActivity))
+                ZenPlayerApp(SettingsStore(this@MainActivity))
             }
         }
     }
